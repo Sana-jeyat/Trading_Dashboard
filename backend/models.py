@@ -22,7 +22,11 @@ class Bot(Base):
     token_pair = Column(String, nullable=False)
     is_active = Column(Boolean, default=False)
     status = Column(String, default="paused")  # active, paused, error
-    
+
+    # Réseau
+    ip_address = Column(String, nullable=False)   # IP du bot
+    port = Column(Integer, default=8000)          # Port du bot
+
     # Paramètres de trading
     buy_price_threshold = Column(Float, nullable=False)
     buy_percentage_drop = Column(Float, nullable=False)
