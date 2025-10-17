@@ -563,7 +563,7 @@ function BotConfig() {
         </div>
       </div>
 
-      {/* Remote Bot Connection */}
+      {/* Remote Bot Connection
       <div className="bg-white rounded-xl shadow-md border border-gray-200">
         <div className="p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-900">Connexion Bot Distant</h2>
@@ -676,7 +676,7 @@ function BotConfig() {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Current Market Conditions */}
       <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">

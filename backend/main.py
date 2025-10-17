@@ -81,6 +81,7 @@ def get_db():
         yield db
     finally:
         db.close()
+        
 
 # Dependency pour l'authentification
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
