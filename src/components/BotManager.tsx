@@ -12,6 +12,10 @@ function BotManager() {
     buyPercentageDrop: 10,
     sellPriceThreshold: 0,
     sellPercentageGain: 10,
+    // NOUVEAUX CHAMPS POUR LES MONTANTS
+    buyAmount: 0.1,
+    sellAmount: 0.1,
+    minSwapAmount: 0.01,
     randomTradesCount: 20,
     tradingDurationHours: 24,
     balance: 0,
@@ -20,24 +24,40 @@ function BotManager() {
     status: 'paused' as const
   });
 
-  const handleAddBot = () => {
+  // Fonction helper pour obtenir le token de base
+  const getTokenBase = (tokenPair) => {
+    if (!tokenPair) return 'token';
+    return tokenPair.split('/')[0] || 'token';
+  };
+
+  const handleAddBot = async () => {
     if (newBot.name && newBot.tokenPair) {
-      addBot(newBot);
-      setNewBot({
-        name: '',
-        tokenPair: '',
-        buyPriceThreshold: 0,
-        buyPercentageDrop: 10,
-        sellPriceThreshold: 0,
-        sellPercentageGain: 10,
-        randomTradesCount: 20,
-        tradingDurationHours: 24,
-        balance: 0,
-        totalProfit: 0,
-        isActive: false,
-        status: 'paused'
-      });
-      setShowAddForm(false);
+      try {
+        await addBot(newBot);
+        setNewBot({
+          name: '',
+          tokenPair: '',
+          buyPriceThreshold: 0,
+          buyPercentageDrop: 10,
+          sellPriceThreshold: 0,
+          sellPercentageGain: 10,
+          // RÉINITIALISER LES NOUVEAUX CHAMPS
+          buyAmount: 0.1,
+          sellAmount: 0.1,
+          minSwapAmount: 0.01,
+          randomTradesCount: 20,
+          tradingDurationHours: 24,
+          balance: 0,
+          totalProfit: 0,
+          isActive: false,
+          status: 'paused'
+        });
+        setShowAddForm(false);
+        alert('Bot créé avec succès! 🚀');
+      } catch (error) {
+        console.error('Erreur création bot:', error);
+        alert('Erreur lors de la création: ' + error.message);
+      }
     }
   };
 
@@ -137,6 +157,56 @@ function BotManager() {
                 placeholder="10"
               />
             </div>
+
+            {/* NOUVEAUX CHAMPS POUR LES MONTANTS */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Montant d'achat ({getTokenBase(newBot.tokenPair)})
+              </label>
+              <input
+                type="number"
+                step="0.001"
+                min="0.001"
+                value={newBot.buyAmount}
+                onChange={(e) => setNewBot(prev => ({ ...prev, buyAmount: parseFloat(e.target.value) }))}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="0.1"
+              />
+              <p className="text-xs text-gray-500 mt-1">Quantité à acheter à chaque trade</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Montant de vente ({getTokenBase(newBot.tokenPair)})
+              </label>
+              <input
+                type="number"
+                step="0.001"
+                min="0.001"
+                value={newBot.sellAmount}
+                onChange={(e) => setNewBot(prev => ({ ...prev, sellAmount: parseFloat(e.target.value) }))}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="0.1"
+              />
+              <p className="text-xs text-gray-500 mt-1">Quantité à vendre à chaque trade</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Montant minimum de swap
+              </label>
+              <input
+                type="number"
+                step="0.001"
+                min="0.001"
+                value={newBot.minSwapAmount}
+                onChange={(e) => setNewBot(prev => ({ ...prev, minSwapAmount: parseFloat(e.target.value) }))}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="0.01"
+              />
+              <p className="text-xs text-gray-500 mt-1">Montant minimum pour exécuter un swap</p>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Trades aléatoires</label>
               <input
@@ -201,6 +271,13 @@ function BotManager() {
                       </span>
                       <span className="text-sm text-green-600">
                         Profit: {"€" + bot.totalProfit.toLocaleString()}
+                      </span>
+                      {/* AFFICHAGE DES NOUVEAUX MONTANTS */}
+                      <span className="text-sm text-blue-600">
+                        Achat: {bot.buyAmount || 0.1}{getTokenBase(bot.tokenPair)}
+                      </span>
+                      <span className="text-sm text-red-600">
+                        Vente: {bot.sellAmount || 0.1}{getTokenBase(bot.tokenPair)}
                       </span>
                       <span className="text-sm text-purple-600">
                         {bot.randomTradesCount} trades/{bot.tradingDurationHours}h

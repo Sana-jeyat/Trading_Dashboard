@@ -11,6 +11,7 @@ function BotConfig() {
     sellPercentageGain: selectedBot.sellPercentageGain,
     randomTradesCount: selectedBot.randomTradesCount,
     tradingDurationHours: selectedBot.tradingDurationHours,
+    swapAmount: selectedBot.swapAmount || 0.1,
     // Configuration Wallet
     walletAddress: selectedBot.walletAddress || '',
     walletPrivateKey: selectedBot.walletPrivateKey || '',
@@ -36,6 +37,7 @@ function BotConfig() {
       sellPercentageGain: selectedBot.sellPercentageGain,
       randomTradesCount: selectedBot.randomTradesCount,
       tradingDurationHours: selectedBot.tradingDurationHours,
+      swapAmount: selectedBot.swapAmount || 0.1,
       walletAddress: selectedBot.walletAddress || '',
       walletPrivateKey: selectedBot.walletPrivateKey || '',
       rpcEndpoint: selectedBot.rpcEndpoint || 'https://polygon-rpc.com',
@@ -315,7 +317,26 @@ function BotConfig() {
               <span>Paramètres de Transaction</span>
             </h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Montant du Swap (WPOL)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max="100"
+                  value={config.swapAmount}
+                  onChange={(e) => handleChange('swapAmount', parseFloat(e.target.value))}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                  placeholder="0.1"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Montant en WPOL pour chaque swap
+                </p>
+              </div>
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Slippage Tolérance (%)
@@ -366,6 +387,21 @@ function BotConfig() {
                 <p className="text-xs text-gray-500 mt-1">
                   Prix du gas en Gwei
                 </p>
+              </div>
+            </div>
+
+            {/* Info sur les swaps */}
+            <div className="mt-4 p-4 bg-green-50 rounded-lg">
+              <div className="flex items-start space-x-2">
+                <Activity className="w-5 h-5 text-green-600 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-green-900">Configuration des Swaps</h4>
+                  <p className="text-sm text-green-700 mt-1">
+                    Le bot utilisera <strong>{config.swapAmount} WPOL</strong> pour chaque transaction, 
+                    avec une tolérance de slippage de <strong>{config.slippageTolerance}%</strong>.
+                    Volume total estimé : <strong>{config.swapAmount * config.randomTradesCount} WPOL</strong> sur {config.tradingDurationHours}h.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -549,7 +585,7 @@ function BotConfig() {
             <div className="flex items-center space-x-2 text-amber-600">
               <AlertCircle className="w-5 h-5" />
               <span className="text-sm font-medium">
-                Conditions: Achat si prix &lt; {"€" + (isSmallToken ? config.buyPriceThreshold.toFixed(4) : config.buyPriceThreshold.toLocaleString())} OU baisse {config.buyPercentageDrop}%+ | Vente si prix &gt; {"€" + (isSmallToken ? config.sellPriceThreshold.toFixed(4) : config.sellPriceThreshold.toLocaleString())} OU hausse {config.sellPercentageGain}%+ | {config.randomTradesCount} trades/{config.tradingDurationHours}h
+                Conditions: Achat si prix &lt; {"€" + (isSmallToken ? config.buyPriceThreshold.toFixed(4) : config.buyPriceThreshold.toLocaleString())} OU baisse {config.buyPercentageDrop}%+ | Vente si prix &gt; {"€" + (isSmallToken ? config.sellPriceThreshold.toFixed(4) : config.sellPriceThreshold.toLocaleString())} OU hausse {config.sellPercentageGain}%+ | {config.randomTradesCount} trades/{config.tradingDurationHours}h | Montant: {config.swapAmount} WPOL/swap
               </span>
             </div>
             <button
@@ -562,121 +598,6 @@ function BotConfig() {
           </div>
         </div>
       </div>
-
-      {/* Remote Bot Connection
-      <div className="bg-white rounded-xl shadow-md border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Connexion Bot Distant</h2>
-          <p className="text-gray-600">Connecter votre script Python depuis un autre PC</p>
-        </div>
-        
-        <div className="p-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                URL de l'API Dashboard
-              </label>
-              <div className="flex space-x-2">
-                <input
-                  type="text"
-                  value={`http://${window.location.hostname}:8000`}
-                  readOnly
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 font-mono text-sm"
-                />
-                <button 
-                  onClick={() => navigator.clipboard.writeText(`http://${window.location.hostname}:8000`)}
-                  className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Copier
-                </button>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Utilisez cette URL dans votre script Python
-              </p>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Token d'authentification
-              </label>
-              <div className="flex space-x-2">
-                <input
-                  type="text"
-                  value={`bot_${selectedBotId}_${Date.now().toString(36)}`}
-                  readOnly
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 font-mono text-sm"
-                />
-                <button 
-                  onClick={() => navigator.clipboard.writeText(`bot_${selectedBotId}_${Date.now().toString(36)}`)}
-                  className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Copier
-                </button>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Token pour authentifier votre bot
-              </p>
-            </div>
-          </div>
-          
-          <div className="p-4 bg-blue-50 rounded-lg">
-            <h4 className="font-medium text-blue-900 mb-2">Instructions d'intégration</h4>
-            <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-              <li>
-                <strong>Trouvez l'IP du PC Dashboard :</strong>
-                <code className="bg-blue-100 px-2 py-1 rounded ml-2">ipconfig</code> (Windows) ou 
-                <code className="bg-blue-100 px-2 py-1 rounded ml-2">ifconfig</code> (Linux/Mac)
-              </li>
-              <li>
-                <strong>Testez la connexion :</strong>
-                <code className="bg-blue-100 px-2 py-1 rounded ml-2">ping IP_DASHBOARD</code>
-              </li>
-              <li>
-                <a 
-                  href={`http://${window.location.hostname}:8000/download/remote_bot_client.py`}
-                  className="text-blue-600 hover:text-blue-800 underline"
-                  download
-                >
-                  Téléchargez remote_bot_client.py
-                </a> sur le PC de votre bot
-              </li>
-              <li>
-                <strong>Configurez le firewall :</strong> Autorisez les ports 8000 et 5173
-              </li>
-              <li>
-                <strong>Modifiez votre script :</strong> Ajoutez les lignes de connexion Dashboard
-              </li>
-              <li>
-                <strong>Démarrez votre bot :</strong> Il apparaîtra "🟢 En ligne" ici
-              </li>
-            </ol>
-            
-            <div className="mt-4 p-3 bg-blue-100 rounded">
-              <p className="text-sm text-blue-800 font-medium mb-2">
-                🔧 Configuration réseau rapide :
-              </p>
-              <div className="space-y-1 text-xs text-blue-700 font-mono">
-                <div>PC Dashboard : {window.location.hostname} (ce PC)</div>
-                <div>API URL : http://{window.location.hostname}:8000</div>
-                <div>Token : bot_{selectedBotId}_xxxxx</div>
-                <div>Ports à ouvrir : 8000 (API) + 5173 (Web)</div>
-              </div>
-            </div>
-            
-            <div className="mt-3 p-3 bg-green-100 rounded">
-              <p className="text-sm text-blue-800">
-                <strong>💡 Astuce :</strong> Votre bot reste sur son PC, seule la communication se fait via réseau !
-              </p>
-            </div>
-            
-            <div className="mt-3 p-3 bg-yellow-100 rounded">
-              <p className="text-sm text-blue-800">
-                <strong>⚠️ Important :</strong> Configurez le firewall Windows pour autoriser les ports 8000 et 5173 !
-              </p>
-            </div>
-          </div>
-        </div>
-      </div> */}
 
       {/* Current Market Conditions */}
       <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">

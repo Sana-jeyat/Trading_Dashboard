@@ -28,12 +28,17 @@ class Bot(Base):
     ip_address = Column(String(50), nullable=True)  # nullable pour MySQL
     port = Column(Integer, default=8000)
 
-    # Paramètres de trading
-    buy_price_threshold = Column(Float, nullable=False)
-    buy_percentage_drop = Column(Float, nullable=False)
-    sell_price_threshold = Column(Float, nullable=False)
-    sell_percentage_gain = Column(Float, nullable=False)
+    # Paramètres de trading (tu avais déjà ces noms — on les garde)
+    buy_price_threshold = Column(Float, nullable=False, default=0.0)
+    buy_percentage_drop = Column(Float, nullable=False, default=0.0)
+    sell_price_threshold = Column(Float, nullable=False, default=0.0)
+    sell_percentage_gain = Column(Float, nullable=False, default=0.0)
     
+    # Montants / limites (ajoutés)
+    buy_amount = Column(Float, nullable=False, default=0.05)   # montant WPOL à utiliser pour BUY
+    sell_amount = Column(Float, nullable=False, default=0.05)  # montant KNO à vendre
+    min_swap_amount = Column(Float, nullable=False, default=0.001)
+
     # Paramètres aléatoires
     random_trades_count = Column(Integer, default=20)
     trading_duration_hours = Column(Integer, default=24)
@@ -57,10 +62,17 @@ class Bot(Base):
     kno_address = Column(String(100), nullable=True)
     router_address = Column(String(100), nullable=True)
     quoter_address = Column(String(100), nullable=True)
-    slippage_tolerance = Column(Float, default=1.0)
+    slippage_tolerance = Column(Float, default=1.0)  # en %
     gas_limit = Column(Integer, default=300000)
-    gas_price = Column(Integer, default=30)
-    
+    gas_price = Column(Integer, default=30)  # en Gwei
+
+    # Bot token pour authentification machine → utile pour endpoints /public
+    bot_token = Column(String(255), nullable=True, unique=True, index=True)
+
+    # Optionnel : intégration / déploiement
+    github_repo = Column(String(255), nullable=True)
+    script_path = Column(String(255), nullable=True)
+
     # Relations
     user = relationship("User", back_populates="bots")
     transactions = relationship("Transaction", back_populates="bot", cascade="all, delete-orphan")

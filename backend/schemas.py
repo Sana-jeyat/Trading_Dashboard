@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 from datetime import datetime
 
@@ -13,7 +13,8 @@ class UserResponse(BaseModel):
     created_at: datetime
     
     class Config:
-        from_attributes = True
+        #from_attributes = True
+        orm_mode = True
 
 # Schémas pour les bots
 class BotCreate(BaseModel):
@@ -23,6 +24,10 @@ class BotCreate(BaseModel):
     buy_percentage_drop: float
     sell_price_threshold: float
     sell_percentage_gain: float
+    # NOUVEAUX CHAMPS POUR LES MONTANTS
+    buy_amount: Optional[float] = Field(0.1, description="Montant à acheter (en token de base)")
+    sell_amount: Optional[float] = Field(0.1, description="Montant à vendre (en token de base)")
+    min_swap_amount: Optional[float] = Field(0.01, description="Montant minimum pour un swap")
     random_trades_count: Optional[int] = 20
     trading_duration_hours: Optional[int] = 24
     balance: Optional[float] = 0.0
@@ -44,6 +49,10 @@ class BotUpdate(BaseModel):
     buy_percentage_drop: Optional[float] = None
     sell_price_threshold: Optional[float] = None
     sell_percentage_gain: Optional[float] = None
+    # NOUVEAUX CHAMPS POUR LES MONTANTS
+    buy_amount: Optional[float] = None
+    sell_amount: Optional[float] = None
+    min_swap_amount: Optional[float] = None
     random_trades_count: Optional[int] = None
     trading_duration_hours: Optional[int] = None
     balance: Optional[float] = None
@@ -70,6 +79,10 @@ class BotResponse(BaseModel):
     buy_percentage_drop: float
     sell_price_threshold: float
     sell_percentage_gain: float
+    # NOUVEAUX CHAMPS POUR LES MONTANTS
+    buy_amount: float
+    sell_amount: float
+    min_swap_amount: float
     random_trades_count: int
     trading_duration_hours: int
     balance: float

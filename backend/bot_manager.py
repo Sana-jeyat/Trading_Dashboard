@@ -1,19 +1,3 @@
-"""Gestionnaire de processus pour les bots de trading
-Gestion locale uniquement
-
-Quand tu fais "start_bot", il lance un script Python (your_trading_script.py) via "subprocess.Popen".
-
-Il garde une référence du process dans "self.running_bots" → dictionnaire "{bot_id: process}".
-"stop_bot" envoie SIGTERM pour arrêter le process.
-
-"get_bot_status" regarde si le process est encore actif.
-
-Les configs de chaque bot sont sauvegardées en JSON dans bot_configs/.
-
-Limite actuelle
-👉 Cela ne fonctionne que si le bot est sur la même machine que le dashboard.
-Impossible d’aller démarrer/arrêter un bot qui est sur un autre PC."""
-
 import asyncio
 import subprocess
 import signal
@@ -23,6 +7,7 @@ from models import Bot
 from database import SessionLocal
 import json
 import logging
+import threading
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -31,64 +16,105 @@ class BotManager:
     def __init__(self):
         self.running_bots: Dict[int, subprocess.Popen] = {}
         self.bot_configs_dir = "bot_configs"
+        self.bot_info: Dict[int, dict] = {}
         
-        # Créer le dossier des configurations si il n'existe pas
         os.makedirs(self.bot_configs_dir, exist_ok=True)
     
     async def start_bot(self, bot: Bot):
         """Démarre un bot de trading"""
         if bot.id in self.running_bots:
-            raise Exception("Le bot est déjà en cours d'exécution")
+            logger.info(f"Bot {bot.id} déjà en cours d'exécution")
+            return
+        
+        self.bot_info[bot.id] = {
+            'id': bot.id,
+            'name': bot.name,
+            'pid': None
+        }
         
         # Créer le fichier de configuration pour le bot
         config_file = self._create_bot_config(bot)
         
-        # Commande pour lancer votre script Python de trading
-        # Adaptez cette commande selon votre script
-        command = [
-            "python", 
-            "your_trading_script.py",  # Remplacez par le nom de votre script
-            "--config", config_file,
-            "--bot-id", str(bot.id)
-        ]
+        command = ["python", "trading_bot.py"]
         
         try:
-            # Lancer le processus
+            env = os.environ.copy()
+            env.update({
+                'BOT_ID': str(bot.id),
+                'API_URL': 'http://localhost:8000'
+            })
+            
             process = subprocess.Popen(
                 command,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                cwd=".",  # Répertoire de vos scripts de trading
+                cwd=os.path.dirname(os.path.abspath(__file__)),
+                env=env,
+                text=True,
+                bufsize=1,
+                universal_newlines=True
             )
             
             self.running_bots[bot.id] = process
+            self.bot_info[bot.id]['pid'] = process.pid
+            
             logger.info(f"Bot {bot.id} ({bot.name}) démarré avec PID {process.pid}")
+            
+            def log_output(pipe, logger_func, bot_id):
+                try:
+                    for line in iter(pipe.readline, ''):
+                        if line:
+                            # Utiliser le niveau INFO au lieu de ERROR pour les logs normaux
+                            if "ERROR" in line:
+                                logger_func(f"BOT_{bot_id}: {line.strip()}")
+                            else:
+                                logging.info(f"BOT_{bot_id}: {line.strip()}")
+                except Exception as e:
+                    logger.error(f"Erreur lecture sortie bot {bot_id}: {e}")
+            
+            threading.Thread(
+                target=log_output, 
+                args=(process.stdout, logger.info, bot.id),
+                daemon=True
+            ).start()
+            
+            threading.Thread(
+                target=log_output, 
+                args=(process.stderr, logger.error, bot.id),
+                daemon=True
+            ).start()
             
         except Exception as e:
             logger.error(f"Erreur lors du démarrage du bot {bot.id}: {str(e)}")
+            if bot.id in self.bot_info:
+                del self.bot_info[bot.id]
             raise
     
     async def stop_bot(self, bot_id: int):
         """Arrête un bot de trading"""
         if bot_id not in self.running_bots:
-            raise Exception("Le bot n'est pas en cours d'exécution")
+            logger.info(f"Bot {bot_id} non trouvé dans les processus en cours")
+            return
         
         process = self.running_bots[bot_id]
         
         try:
-            # Envoyer SIGTERM pour arrêt propre
+            bot_name = self.bot_info.get(bot_id, {}).get('name', 'Unknown')
+            logger.info(f"Arrêt du bot {bot_id} ({bot_name}) - PID: {process.pid}")
+            
             process.terminate()
             
-            # Attendre 10 secondes pour l'arrêt propre
             try:
-                process.wait(timeout=10)
+                process.wait(timeout=5)
+                logger.info(f"Bot {bot_id} arrêté proprement")
             except subprocess.TimeoutExpired:
-                # Forcer l'arrêt si nécessaire
+                logger.warning(f"Bot {bot_id} ne répond pas, kill forcé")
                 process.kill()
                 process.wait()
             
             del self.running_bots[bot_id]
-            logger.info(f"Bot {bot_id} arrêté")
+            if bot_id in self.bot_info:
+                del self.bot_info[bot_id]
             
         except Exception as e:
             logger.error(f"Erreur lors de l'arrêt du bot {bot_id}: {str(e)}")
@@ -104,9 +130,15 @@ class BotManager:
             "buy_percentage_drop": bot.buy_percentage_drop,
             "sell_price_threshold": bot.sell_price_threshold,
             "sell_percentage_gain": bot.sell_percentage_gain,
+            # NOUVEAUX CHAMPS POUR LES MONTANTS
+            "buy_amount": bot.buy_amount if hasattr(bot, 'buy_amount') else 0.1,
+            "sell_amount": bot.sell_amount if hasattr(bot, 'sell_amount') else 0.1,
+            "min_swap_amount": bot.min_swap_amount if hasattr(bot, 'min_swap_amount') else 0.01,
+            "random_trades_count": bot.random_trades_count,
+            "trading_duration_hours": bot.trading_duration_hours,
             "last_buy_price": bot.last_buy_price,
             "last_sell_price": bot.last_sell_price,
-            "api_endpoint": "http://localhost:8000"  # Pour que le bot puisse communiquer avec l'API
+            "api_endpoint": "http://localhost:8000"
         }
         
         config_file = os.path.join(self.bot_configs_dir, f"bot_{bot.id}_config.json")
@@ -114,6 +146,8 @@ class BotManager:
         with open(config_file, 'w') as f:
             json.dump(config, f, indent=2)
         
+        logger.info(f"Config créée: {config_file}")
+        logger.info(f"Montants configurés - Achat: {config['buy_amount']}, Vente: {config['sell_amount']}, Min: {config['min_swap_amount']}")
         return config_file
     
     def get_bot_status(self, bot_id: int) -> str:
@@ -125,8 +159,9 @@ class BotManager:
         if process.poll() is None:
             return "running"
         else:
-            # Le processus s'est arrêté
             del self.running_bots[bot_id]
+            if bot_id in self.bot_info:
+                del self.bot_info[bot_id]
             return "stopped"
     
     def stop_all_bots(self):

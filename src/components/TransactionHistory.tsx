@@ -1,10 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useBotContext } from '../context/BotContext';
-import { History, Filter, TrendingUp, TrendingDown, Calendar } from 'lucide-react';
+import { History, Filter, TrendingUp, TrendingDown, Calendar, RefreshCw } from 'lucide-react';
 
 function TransactionHistory() {
-  const { transactions, selectedBot } = useBotContext();
+  const { transactions, selectedBot, loading, refreshData } = useBotContext();
   const [filter, setFilter] = useState('all');
+
+  
+  // Rafraîchissement automatique
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshData();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [refreshData]);
 
   const filteredTransactions = filter === 'all' 
     ? transactions 
@@ -17,6 +27,15 @@ function TransactionHistory() {
   const totalBuys = transactions.filter(t => t.type === 'buy').length;
   const totalSells = transactions.filter(t => t.type === 'sell').length;
 
+if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
+        <span className="ml-3 text-gray-600">Chargement des transactions...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -27,6 +46,13 @@ function TransactionHistory() {
             <p className="text-gray-600">Toutes les transactions du bot</p>
           </div>
         </div>
+        <button
+          onClick={refreshData}
+          className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <RefreshCw className="w-4 h-4" />
+          <span>Rafraîchir</span>
+        </button>
       </div>
 
       {/* Summary Stats */}

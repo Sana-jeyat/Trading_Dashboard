@@ -22,9 +22,9 @@ import logging
 
 from database import SessionLocal, engine, Base
 from models import Bot, Transaction, User
-from schemas import BotCreate, BotUpdate, BotResponse, TransactionResponse, UserCreate, UserResponse
+from schemas import BotCreate, BotUpdate, BotResponse, TransactionResponse,TransactionCreate, UserCreate, UserResponse
 from auth import create_access_token, verify_token, get_password_hash, verify_password
-#from bot_manager import BotManager
+from bot_manager import BotManager
 from wallet_security import wallet_security
 
 logging.basicConfig(level=logging.INFO)
@@ -45,7 +45,7 @@ app.add_middleware(
 )
 
 security = HTTPBearer()
-#bot_manager = BotManager()
+bot_manager = BotManager()
 
 # Route pour vérifier la connectivité réseau
 @app.get("/health")
@@ -57,22 +57,22 @@ async def health_check():
     }
 
 # Route pour télécharger le client Python
-@app.get("/download/remote_bot_client.py")
-async def download_client():
-    """Télécharge le client Python pour connecter un bot distant"""
-    from fastapi.responses import FileResponse
-    try:
-        return FileResponse(
-            path="remote_bot_client.py",
-            filename="remote_bot_client.py",
-            media_type="text/plain"
-        )
-    except FileNotFoundError:
-        # Si le fichier n'existe pas, retourner le contenu directement
-        from fastapi.responses import PlainTextResponse
-        with open("remote_bot_client.py", "r", encoding="utf-8") as f:
-            content = f.read()
-        return PlainTextResponse(content, headers={"Content-Disposition": "attachment; filename=remote_bot_client.py"})
+# @app.get("/download/remote_bot_client.py")
+# async def download_client():
+#     """Télécharge le client Python pour connecter un bot distant"""
+#     from fastapi.responses import FileResponse
+#     try:
+#         return FileResponse(
+#             path="remote_bot_client.py",
+#             filename="remote_bot_client.py",
+#             media_type="text/plain"
+#         )
+#     except FileNotFoundError:
+#         # Si le fichier n'existe pas, retourner le contenu directement
+#         from fastapi.responses import PlainTextResponse
+#         with open("remote_bot_client.py", "r", encoding="utf-8") as f:
+#             content = f.read()
+#         return PlainTextResponse(content, headers={"Content-Disposition": "attachment; filename=remote_bot_client.py"})
 
 # Dependency pour la base de données
 def get_db():
@@ -84,15 +84,39 @@ def get_db():
         
 
 # Dependency pour l'authentification
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
-    token = credentials.credentials
-    user_id = verify_token(token)
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Token invalide")
+# async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+#     token = credentials.credentials
+#     user_id = verify_token(token)
+#     if not user_id:
+#         raise HTTPException(status_code=401, detail="Token invalide")
     
-    user = db.query(User).filter(User.id == user_id).first()
+#     user = db.query(User).filter(User.id == user_id).first()
+#     if not user:
+#         raise HTTPException(status_code=401, detail="Utilisateur non trouvé")
+#     return user
+
+# async def get_current_user(db: Session = Depends(get_db)):
+#     # ⚠️ TEMPORAIRE : Ignorer le token et retourner un user par défaut
+#     user = db.query(User).first()
+#     if not user:
+#         from auth import get_password_hash
+#         user = User(email="test@example.com", hashed_password=get_password_hash("password123"))
+#         db.add(user)
+#         db.commit()
+#         db.refresh(user)
+#     return user
+
+async def get_current_user(db: Session = Depends(get_db)):  # ← Enlevez le token!
+    # Retourne toujours le premier utilisateur (pour les tests)
+    user = db.query(User).first()
     if not user:
-        raise HTTPException(status_code=401, detail="Utilisateur non trouvé")
+        # Crée un utilisateur par défaut si aucun n'existe
+        from auth import get_password_hash
+        user = User(email="test@example.com", hashed_password=get_password_hash("password123"))
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        print("✅ Utilisateur test créé automatiquement")
     return user
 
 @app.get("/")
@@ -134,7 +158,7 @@ async def get_bots(current_user: User = Depends(get_current_user), db: Session =
     return bots
 
 @app.post("/bots", response_model=BotResponse)
-async def create_bot(bot: BotCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def create_bot(bot: BotCreate, db: Session = Depends(get_db)):
     # Validation des données wallet si fournies
     if bot.wallet_address and not wallet_security.validate_wallet_address(bot.wallet_address):
         raise HTTPException(status_code=400, detail="Format d'adresse wallet invalide")
@@ -155,7 +179,9 @@ async def create_bot(bot: BotCreate, current_user: User = Depends(get_current_us
     bot_data['wallet_private_key_encrypted'] = encrypted_private_key
     bot_data.pop('wallet_private_key', None)  # Supprimer la clé en clair
     
-    db_bot = Bot(**bot_data, user_id=current_user.id)
+    # db_bot = Bot(**bot_data, user_id=current_user.id)
+    user = await get_current_user(db)  # ← Récupère l'user ici
+    db_bot = Bot(**bot_data, user_id=user.id)  # ← Utilise user.id
     db.add(db_bot)
     db.commit()
     db.refresh(db_bot)
@@ -254,7 +280,7 @@ async def start_bot(bot_id: int, current_user: User = Depends(get_current_user),
     if not bot:
         raise HTTPException(status_code=404, detail="Bot non trouvé")
     
-        #await bot_manager.start_bot(bot)
+    await bot_manager.start_bot(bot)
     bot.is_active = True
     bot.status = "active"
     db.commit()
@@ -265,9 +291,7 @@ async def stop_bot(bot_id: int, current_user: User = Depends(get_current_user), 
     bot = db.query(Bot).filter(Bot.id == bot_id, Bot.user_id == current_user.id).first()
     if not bot:
         raise HTTPException(status_code=404, detail="Bot non trouvé")
-    
-  
-        #await bot_manager.stop_bot(bot_id)
+    await bot_manager.stop_bot(bot_id)
     bot.is_active = False
     bot.status = "paused"
     db.commit()
@@ -303,6 +327,48 @@ async def bot_heartbeat(bot_id: int, current_user: User = Depends(get_current_us
     return {"status": "alive"}
 
 # Routes pour les transactions
+@app.post("/transactions", response_model=TransactionResponse)
+async def create_transaction(transaction: TransactionCreate, db: Session = Depends(get_db)):
+    """Crée une nouvelle transaction"""
+    try:
+        # Vérifier que le bot existe
+        bot = db.query(Bot).filter(Bot.id == transaction.bot_id).first()
+        if not bot:
+            raise HTTPException(status_code=404, detail="Bot non trouvé")
+        
+        # Créer la transaction
+        db_transaction = Transaction(
+            bot_id=transaction.bot_id,
+            type=transaction.type,
+            amount=transaction.amount,
+            price=transaction.price,
+            profit=transaction.profit,
+            tx_hash=transaction.tx_hash
+        )
+        
+        db.add(db_transaction)
+        db.commit()
+        db.refresh(db_transaction)
+        
+        # Mettre à jour les stats du bot
+        if transaction.type == 'buy':
+            bot.last_buy_price = transaction.price
+        elif transaction.type == 'sell':
+            bot.last_sell_price = transaction.price
+            
+        if transaction.profit:
+            bot.total_profit += transaction.profit
+            
+        db.commit()
+        
+        logger.info(f"Transaction enregistrée: {transaction.type} {transaction.amount} pour bot {transaction.bot_id}")
+        return db_transaction
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erreur création transaction: {e}")
+        raise HTTPException(status_code=500, detail="Erreur lors de la création de la transaction")
+    
 @app.get("/bots/{bot_id}/transactions", response_model=List[TransactionResponse])
 async def get_transactions(bot_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     # Vérifier que le bot appartient à l'utilisateur
