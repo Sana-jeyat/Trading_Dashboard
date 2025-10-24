@@ -249,7 +249,8 @@ async def update_bot(bot_id: int, bot_update: BotUpdate, current_user: User = De
     update_data.pop('wallet_private_key', None)  # Supprimer la clé en clair (déjà traitée)
     
     for field, value in update_data.items():
-        setattr(bot, field, value)
+        if hasattr(bot, field):
+            setattr(bot, field, value)
     
     bot.updated_at = datetime.utcnow()
     db.commit()

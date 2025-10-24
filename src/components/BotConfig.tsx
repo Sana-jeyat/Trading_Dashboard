@@ -60,14 +60,25 @@ function BotConfig() {
     }
   };
 
-  const handleSave = () => {
-    updateBotConfig(selectedBotId, config);
-    setSaved(true);
+  // const handleSave = () => {
+  //   updateBotConfig(selectedBotId, config);
+  //   setSaved(true);
     
-    // Dans une vraie implémentation, ceci ferait un appel API
-    // fetch(`/api/bots/${selectedBotId}`, { method: 'PUT', body: JSON.stringify(config) })
+  //   // Dans une vraie implémentation, ceci ferait un appel API
+  //   // fetch(`/api/bots/${selectedBotId}`, { method: 'PUT', body: JSON.stringify(config) })
     
-    setTimeout(() => setSaved(false), 3000);
+  //   setTimeout(() => setSaved(false), 3000);
+  // };
+
+  const handleSave = async () => {
+    try {
+      await updateBotConfig(selectedBotId, config);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (error) {
+      console.error('Erreur sauvegarde:', error);
+      // Afficher un message d'erreur à l'utilisateur
+    }
   };
 
   const handleChange = (field: string, value: number | string) => {

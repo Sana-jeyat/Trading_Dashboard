@@ -1,18 +1,55 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { apiService, BotConfig as ApiBotConfig, Transaction as ApiTransaction } from '../services/api';
 
+// interface BotConfig {
+//   id: string;
+//   name: string;
+//   tokenPair: string;
+//   isActive: boolean;
+//   status: 'active' | 'paused' | 'error';
+//   buyPriceThreshold: number;
+//   buyPercentageDrop: number;
+//   sellPriceThreshold: number;
+//   sellPercentageGain: number;
+//   randomTradesCount: number;
+//   tradingDurationHours: number;
+//   balance: number;
+//   totalProfit: number;
+//   lastBuyPrice?: number;
+//   lastSellPrice?: number;
+// }
+
 interface BotConfig {
   id: string;
   name: string;
   tokenPair: string;
   isActive: boolean;
   status: 'active' | 'paused' | 'error';
+  
+  // Paramètres de trading
   buyPriceThreshold: number;
   buyPercentageDrop: number;
   sellPriceThreshold: number;
   sellPercentageGain: number;
   randomTradesCount: number;
   tradingDurationHours: number;
+  swapAmount: number;
+  
+  // Configuration Wallet
+  walletAddress: string;
+  walletPrivateKey: string;
+  rpcEndpoint: string;
+  wpolAddress: string;
+  knoAddress: string;
+  routerAddress: string;
+  quoterAddress: string;
+  
+  // Paramètres de transaction
+  slippageTolerance: number;
+  gasLimit: number;
+  gasPrice: number;
+  
+  // Stats
   balance: number;
   totalProfit: number;
   lastBuyPrice?: number;
@@ -77,36 +114,86 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const loadBots = async () => {
-    try {
-      const apiBots = await apiService.getBots();
+  // const loadBots = async () => {
+  //   try {
+  //     const apiBots = await apiService.getBots();
       
-      const formattedBots: BotConfig[] = apiBots.map(apiBot => ({
-        id: apiBot.id.toString(),
-        name: apiBot.name,
-        tokenPair: apiBot.token_pair,
-        isActive: apiBot.is_active,
-        status: apiBot.status,
-        buyPriceThreshold: apiBot.buy_price_threshold,
-        buyPercentageDrop: apiBot.buy_percentage_drop,
-        sellPriceThreshold: apiBot.sell_price_threshold,
-        sellPercentageGain: apiBot.sell_percentage_gain,
-        randomTradesCount: apiBot.random_trades_count,
-        tradingDurationHours: apiBot.trading_duration_hours,
-        balance: apiBot.balance,
-        totalProfit: apiBot.total_profit,
-        lastBuyPrice: apiBot.last_buy_price,
-        lastSellPrice: apiBot.last_sell_price
-      }));
+  //     const formattedBots: BotConfig[] = apiBots.map(apiBot => ({
+  //       id: apiBot.id.toString(),
+  //       name: apiBot.name,
+  //       tokenPair: apiBot.token_pair,
+  //       isActive: apiBot.is_active,
+  //       status: apiBot.status,
+  //       buyPriceThreshold: apiBot.buy_price_threshold,
+  //       buyPercentageDrop: apiBot.buy_percentage_drop,
+  //       sellPriceThreshold: apiBot.sell_price_threshold,
+  //       sellPercentageGain: apiBot.sell_percentage_gain,
+  //       randomTradesCount: apiBot.random_trades_count,
+  //       tradingDurationHours: apiBot.trading_duration_hours,
+  //       balance: apiBot.balance,
+  //       totalProfit: apiBot.total_profit,
+  //       lastBuyPrice: apiBot.last_buy_price,
+  //       lastSellPrice: apiBot.last_sell_price
+  //     }));
 
-      setBots(formattedBots);
-      if (formattedBots.length > 0 && !selectedBotId) {
-        setSelectedBotId(formattedBots[0].id);
-      }
-    } catch (error) {
-      console.error('Erreur chargement bots:', error);
+  //     setBots(formattedBots);
+  //     if (formattedBots.length > 0 && !selectedBotId) {
+  //       setSelectedBotId(formattedBots[0].id);
+  //     }
+  //   } catch (error) {
+  //     console.error('Erreur chargement bots:', error);
+  //   }
+  // };
+
+  const loadBots = async () => {
+  try {
+    const apiBots = await apiService.getBots();
+    
+    const formattedBots: BotConfig[] = apiBots.map(apiBot => ({
+      id: apiBot.id.toString(),
+      name: apiBot.name,
+      tokenPair: apiBot.token_pair,
+      isActive: apiBot.is_active,
+      status: apiBot.status,
+      
+      // Paramètres de trading
+      buyPriceThreshold: apiBot.buy_price_threshold,
+      buyPercentageDrop: apiBot.buy_percentage_drop,
+      sellPriceThreshold: apiBot.sell_price_threshold,
+      sellPercentageGain: apiBot.sell_percentage_gain,
+      randomTradesCount: apiBot.random_trades_count,
+      tradingDurationHours: apiBot.trading_duration_hours,
+      swapAmount: apiBot.swap_amount || 0.1,
+      
+      // Configuration Wallet
+      walletAddress: apiBot.wallet_address || '',
+      walletPrivateKey: apiBot.wallet_private_key || '',
+      rpcEndpoint: apiBot.rpc_endpoint || 'https://polygon-rpc.com',
+      wpolAddress: apiBot.wpol_address || '',
+      knoAddress: apiBot.kno_address || '',
+      routerAddress: apiBot.router_address || '',
+      quoterAddress: apiBot.quoter_address || '',
+      
+      // Paramètres de transaction
+      slippageTolerance: apiBot.slippage_tolerance || 1,
+      gasLimit: apiBot.gas_limit || 300000,
+      gasPrice: apiBot.gas_price || 30,
+      
+      // Stats
+      balance: apiBot.balance,
+      totalProfit: apiBot.total_profit,
+      lastBuyPrice: apiBot.last_buy_price,
+      lastSellPrice: apiBot.last_sell_price
+    }));
+
+    setBots(formattedBots);
+    if (formattedBots.length > 0 && !selectedBotId) {
+      setSelectedBotId(formattedBots[0].id);
     }
-  };
+  } catch (error) {
+    console.error('Erreur chargement bots:', error);
+  }
+};
 
   const loadTransactions = async () => {
     try {
@@ -152,27 +239,62 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
     loadAllData();
   };
 
-  const addBot = async (botData: Omit<BotConfig, 'id'>) => {
-    try {
-      const apiBotData = {
-        name: botData.name,
-        token_pair: botData.tokenPair,
-        buy_price_threshold: botData.buyPriceThreshold,
-        buy_percentage_drop: botData.buyPercentageDrop,
-        sell_price_threshold: botData.sellPriceThreshold,
-        sell_percentage_gain: botData.sellPercentageGain,
-        random_trades_count: botData.randomTradesCount,
-        trading_duration_hours: botData.tradingDurationHours
-      };
+  // const addBot = async (botData: Omit<BotConfig, 'id'>) => {
+  //   try {
+  //     const apiBotData = {
+  //       name: botData.name,
+  //       token_pair: botData.tokenPair,
+  //       buy_price_threshold: botData.buyPriceThreshold,
+  //       buy_percentage_drop: botData.buyPercentageDrop,
+  //       sell_price_threshold: botData.sellPriceThreshold,
+  //       sell_percentage_gain: botData.sellPercentageGain,
+  //       random_trades_count: botData.randomTradesCount,
+  //       trading_duration_hours: botData.tradingDurationHours
+  //     };
 
-      await apiService.createBot(apiBotData);
-      await loadBots();
+  //     await apiService.createBot(apiBotData);
+  //     await loadBots();
       
-    } catch (error) {
-      console.error('Erreur création bot:', error);
-      throw error;
-    }
-  };
+  //   } catch (error) {
+  //     console.error('Erreur création bot:', error);
+  //     throw error;
+  //   }
+  // };
+
+  const addBot = async (botData: Omit<BotConfig, 'id'>) => {
+  try {
+    const apiBotData = {
+      name: botData.name,
+      token_pair: botData.tokenPair,
+      // Inclure tous les champs nécessaires
+      buy_price_threshold: botData.buyPriceThreshold,
+      buy_percentage_drop: botData.buyPercentageDrop,
+      sell_price_threshold: botData.sellPriceThreshold,
+      sell_percentage_gain: botData.sellPercentageGain,
+      random_trades_count: botData.randomTradesCount,
+      trading_duration_hours: botData.tradingDurationHours,
+      swap_amount: botData.swapAmount || 0.1,
+      // Configuration par défaut pour les nouveaux bots
+      wallet_address: '',
+      wallet_private_key: '',
+      rpc_endpoint: 'https://polygon-rpc.com',
+      wpol_address: '',
+      kno_address: '',
+      router_address: '',
+      quoter_address: '',
+      slippage_tolerance: 1,
+      gas_limit: 300000,
+      gas_price: 30
+    };
+
+    await apiService.createBot(apiBotData);
+    await loadBots();
+    
+  } catch (error) {
+    console.error('Erreur création bot:', error);
+    throw error;
+  }
+};
 
   // NOUVELLE FONCTION: Démarrer un bot spécifique
   const startBot = async (botId: string) => {
@@ -212,21 +334,78 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const updateBotConfig = async (botId: string, config: Partial<BotConfig>) => {
-    try {
-      const apiConfig: any = {};
-      Object.keys(config).forEach(key => {
-        const apiKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
-        apiConfig[apiKey] = (config as any)[key];
-      });
+  // const updateBotConfig = async (botId: string, config: Partial<BotConfig>) => {
+  //   try {
+  //     const apiConfig: any = {};
+  //     Object.keys(config).forEach(key => {
+  //       const apiKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+  //       apiConfig[apiKey] = (config as any)[key];
+  //     });
 
-      await apiService.updateBot(botId, apiConfig);
-      await loadBots();
+  //     await apiService.updateBot(botId, apiConfig);
+  //     await loadBots();
       
-    } catch (error) {
-      console.error('Erreur mise à jour bot:', error);
-    }
-  };
+  //   } catch (error) {
+  //     console.error('Erreur mise à jour bot:', error);
+  //   }
+  // };
+
+  const updateBotConfig = async (botId: string, config: Partial<BotConfig>) => {
+  try {
+    // Mapper tous les champs possibles entre frontend et backend
+    const fieldMappings: { [key: string]: string } = {
+      // Paramètres de trading
+      buyPriceThreshold: 'buy_price_threshold',
+      buyPercentageDrop: 'buy_percentage_drop',
+      sellPriceThreshold: 'sell_price_threshold',
+      sellPercentageGain: 'sell_percentage_gain',
+      randomTradesCount: 'random_trades_count',
+      tradingDurationHours: 'trading_duration_hours',
+      swapAmount: 'swap_amount',
+      
+      // Configuration Wallet
+      walletAddress: 'wallet_address',
+      walletPrivateKey: 'wallet_private_key',
+      rpcEndpoint: 'rpc_endpoint',
+      wpolAddress: 'wpol_address',
+      knoAddress: 'kno_address',
+      routerAddress: 'router_address',
+      quoterAddress: 'quoter_address',
+      
+      // Paramètres de transaction
+      slippageTolerance: 'slippage_tolerance',
+      gasLimit: 'gas_limit',
+      gasPrice: 'gas_price',
+      
+      // Autres champs
+      name: 'name',
+      tokenPair: 'token_pair',
+      isActive: 'is_active',
+      status: 'status',
+      balance: 'balance',
+      totalProfit: 'total_profit',
+      lastBuyPrice: 'last_buy_price',
+      lastSellPrice: 'last_sell_price'
+    };
+
+    const apiConfig: any = {};
+    
+    // Convertir chaque champ avec le mapping
+    Object.keys(config).forEach(key => {
+      const apiKey = fieldMappings[key] || key;
+      apiConfig[apiKey] = (config as any)[key];
+    });
+
+    console.log('Envoi configuration:', apiConfig); // Debug
+    
+    await apiService.updateBot(botId, apiConfig);
+    await loadBots();
+    
+  } catch (error) {
+    console.error('Erreur mise à jour bot:', error);
+    throw error; // Important: propager l'erreur
+  }
+};
 
   const deleteBot = async (botId: string) => {
     try {
