@@ -12,7 +12,11 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(
+    schemes=["bcrypt", "md5_crypt"],  # md5_crypt comme fallback
+    deprecated="auto"
+)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
@@ -21,6 +25,15 @@ def get_password_hash(password: str) -> str:
     # Tronquer à 72 caractères pour éviter l'erreur bcrypt
     truncated_password = password[:72]
     return pwd_context.hash(truncated_password)
+
+# def get_password_hash(password: str) -> str:
+#     # Forcer l'utilisation de bcrypt avec gestion d'erreur
+#     try:
+#         return pwd_context.hash(password)
+#     except Exception as e:
+#         print(f"Erreur bcrypt: {e}")
+#         # Fallback vers un algorithme plus simple
+#         return pwd_context.hash(password, scheme="md5_crypt")
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()

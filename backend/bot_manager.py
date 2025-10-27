@@ -7,6 +7,7 @@ from models import Bot
 from database import SessionLocal
 import json
 import logging
+import sys
 import threading
 
 logging.basicConfig(level=logging.INFO)
@@ -35,7 +36,7 @@ class BotManager:
         # Créer le fichier de configuration pour le bot
         config_file = self._create_bot_config(bot)
         
-        command = ["python", "trading_bot.py"]
+        command = [sys.executable, "trading_bot.py"]
         
         try:
             env = os.environ.copy()
@@ -58,7 +59,7 @@ class BotManager:
             self.running_bots[bot.id] = process
             self.bot_info[bot.id]['pid'] = process.pid
             
-            logger.info(f"Bot {bot.id} ({bot.name}) démarré avec PID {process.pid}")
+            logger.info(f"Bot {bot.id} ({bot.name}) démarré avec PID {process.pid} — Python {sys.version.split()[0]}")
             
             def log_output(pipe, logger_func, bot_id):
                 try:

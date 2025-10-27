@@ -8,7 +8,7 @@ Gestion des wallets sécurisée (clé privée chiffrée) → OK
 Transactions et stats consolidées → OK
 
 Endpoints pour le monitoring (/status, /heartbeat) → OK"""
-
+from web3 import Web3
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -19,6 +19,8 @@ from datetime import datetime, timedelta
 import asyncio
 import json
 import logging
+
+import sys
 
 from database import SessionLocal, engine, Base
 from models import Bot, Transaction, User
@@ -112,7 +114,7 @@ async def get_current_user(db: Session = Depends(get_db)):  # ← Enlevez le tok
     if not user:
         # Crée un utilisateur par défaut si aucun n'existe
         from auth import get_password_hash
-        user = User(email="test@example.com", hashed_password=get_password_hash("password123"))
+        user = User(email="test@example.com", hashed_password=get_password_hash("test"))
         db.add(user)
         db.commit()
         db.refresh(user)
@@ -421,5 +423,8 @@ if __name__ == "__main__":
     logger.info("📡 API accessible sur : http://0.0.0.0:8000")
     logger.info("📊 Dashboard sur : http://localhost:5173")
     logger.info("🔗 Client Python : http://localhost:8000/download/remote_bot_client.py")
-    
+     # Python version 
+    python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    print(f"\n🚀 Bot de trading KNO (Python {python_version}) démarrage...\n")
+
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")

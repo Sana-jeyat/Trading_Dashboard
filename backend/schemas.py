@@ -13,8 +13,8 @@ class UserResponse(BaseModel):
     created_at: datetime
     
     class Config:
-        #from_attributes = True
-        orm_mode = True
+        from_attributes = True
+        # orm_mode = True
 
 # Schémas pour les bots
 class BotCreate(BaseModel):
