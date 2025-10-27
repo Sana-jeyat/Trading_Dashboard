@@ -272,7 +272,7 @@ class KNOTradingBot:
 
     # --- TRADING AVEC MONTANTS VARIABLES ---
     def buy_kno(self, current_price):
-        """Exécute un achat avec le montant configuré dans le dashboard"""
+        """Exécute un achat avec variation aléatoire autour du montant configuré"""
         try:
             if not self.wallet_address or not self.private_key:
                 self.logger.error("Wallet non configuré pour l'achat")
@@ -281,7 +281,12 @@ class KNOTradingBot:
             self.logger.info("Préparation de l'achat KNO...")
 
             # Récupérer le montant d'achat CONFIGURABLE
-            buy_amount = self.config["buy_amount"]
+            base_buy_amount = self.config["buy_amount"]
+            
+            # VARIATION : ±15% aléatoire
+            variation = random.uniform(0.85, 1.15)
+            buy_amount = base_buy_amount * variation
+            
             min_swap_amount = self.config["min_swap_amount"]
             
             # Vérifier le montant minimum
@@ -300,11 +305,11 @@ class KNOTradingBot:
                     return False
                 balance_wpol = self.from_wei(token_wpol.functions.balanceOf(self.wallet_address).call(), 18)
 
-            # Utiliser le montant configuré ou la balance disponible (le plus petit)
+            # Utiliser le montant VARIABLE ou la balance disponible (le plus petit)
             amt_decimal = min(buy_amount, balance_wpol)
             amt_wei = self.to_wei(amt_decimal, 18)
             
-            self.logger.info(f"Montant WPOL à swap: {amt_decimal:.6f} (configuré: {buy_amount})")
+            self.logger.info(f"Montant WPOL à swap: {amt_decimal:.6f} (base: {base_buy_amount}, variation: {variation:.2f}x)")
 
             if not self.approve_token(token_wpol, ROUTER, amt_wei, "WPOL"):
                 return False
@@ -333,7 +338,7 @@ class KNOTradingBot:
 
             success = receipt.status == 1
             if success:
-                self.logger.info(f"Achat réussi ! {amt_decimal} KNO achetés")
+                self.logger.info(f"Achat réussi ! {amt_decimal:.6f} KNO achetés")
                 self.report_trade("buy", amt_decimal, current_price)
             else:
                 self.logger.error("Achat échoué - receipt.status=0")
@@ -343,7 +348,7 @@ class KNOTradingBot:
             return False
 
     def sell_kno(self, current_price):
-        """Exécute une vente avec le montant configuré dans le dashboard"""
+        """Exécute une vente avec variation aléatoire autour du montant configuré"""
         try:
             if not self.wallet_address or not self.private_key:
                 self.logger.error("Wallet non configuré pour la vente")
@@ -352,7 +357,12 @@ class KNOTradingBot:
             self.logger.info("Début de la vente KNO...")
 
             # Récupérer le montant de vente CONFIGURABLE
-            sell_amount = self.config["sell_amount"]
+            base_sell_amount = self.config["sell_amount"]
+            
+            # VARIATION : ±15% aléatoire
+            variation = random.uniform(0.85, 1.15)
+            sell_amount = base_sell_amount * variation
+            
             min_swap_amount = self.config["min_swap_amount"]
             
             # Vérifier le montant minimum
@@ -369,11 +379,11 @@ class KNOTradingBot:
                 self.logger.warning("Balance KNO insuffisante pour vendre")
                 return False
 
-            # Utiliser le montant configuré ou la balance disponible (le plus petit)
+            # Utiliser le montant VARIABLE ou la balance disponible (le plus petit)
             amt_decimal = min(sell_amount, balance_kno_decimal)
             amt_wei = self.to_wei(amt_decimal, 18)
 
-            self.logger.info(f"Montant KNO à vendre: {amt_decimal:.6f} (configuré: {sell_amount})")
+            self.logger.info(f"Montant KNO à vendre: {amt_decimal:.6f} (base: {base_sell_amount}, variation: {variation:.2f}x)")
 
             if not self.approve_token(token_kno, ROUTER, amt_wei, "KNO"):
                 return False
@@ -403,7 +413,7 @@ class KNOTradingBot:
             success = receipt.status == 1
 
             if success:
-                self.logger.info(f"Vente réussie ! {amt_decimal} KNO vendus")
+                self.logger.info(f"Vente réussie ! {amt_decimal:.6f} KNO vendus")
                 new_balance_wpol = token_wpol.functions.balanceOf(self.wallet_address).call()
                 gained_wpol = new_balance_wpol - old_balance_wpol
                 self.logger.info(f"WPOL reçus: {self.from_wei(gained_wpol,18):.6f}")
