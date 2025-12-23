@@ -1,0 +1,17 @@
+{
+  "bot_id": 6,
+  "name": "Bot 5",
+  "token_pair": "kno/pol",
+  "buy_price_threshold": 0.0017,
+  "buy_percentage_drop": 10.0,
+  "sell_price_threshold": 0.002,
+  "sell_percentage_gain": 10.0,
+  "buy_amount": 0.1,
+  "sell_amount": 0.1,
+  "min_swap_amount": 0.01,
+  "random_trades_count": 50,
+  "trading_duration_hours": 1,
+  "last_buy_price": 0.00167779,
+  "last_sell_price": null,
+  "api_endpoint": "http://localhost:8000"
+}
