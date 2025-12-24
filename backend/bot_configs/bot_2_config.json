@@ -11,7 +11,7 @@
   "min_swap_amount": 0.001,
   "random_trades_count": 20,
   "trading_duration_hours": 24,
-  "last_buy_price": 0.00162722,
+  "last_buy_price": 0.00162819,
   "last_sell_price": 100.0,
   "api_endpoint": "http://localhost:8000"
 }
