@@ -12,6 +12,6 @@
   "random_trades_count": 20,
   "trading_duration_hours": 24,
   "last_buy_price": 0.00136452,
-  "last_sell_price": 0.0015923,
+  "last_sell_price": 0.00149152,
   "api_endpoint": "http://localhost:8000"
 }
