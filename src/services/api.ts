@@ -150,39 +150,49 @@ const API_BASE_URL = 'http://localhost:8000';
 
 // Types pour l'API - CORRIGÉS pour matcher le backend
 export interface BotConfig {
-  id: number;  // ← CHANGÉ: number au lieu de string
+  last_heartbeat: any;
+  updated_at: any;
+  created_at: any;
+  sell_percentage_gain: any;
+  sell_price_threshold: any;
+  buy_price_threshold: any;
+  reference_price: any;
+  sell_amount: number;
+  is_active: any;
+  buy_amount: number;
+  last_sell_price: any;
+  last_buy_price: any;
+  buy_percentage_drop: any;
+  id: string;
   name: string;
-  token_pair: string;  // ← CHANGÉ: snake_case
-  is_active: boolean;  // ← CHANGÉ: snake_case
-  status: 'active' | 'paused' | 'error';
-  buy_price_threshold: number;  // ← CHANGÉ: snake_case
-  buy_percentage_drop: number;  // ← CHANGÉ: snake_case
-  sell_price_threshold: number;  // ← CHANGÉ: snake_case
-  sell_percentage_gain: number;  // ← CHANGÉ: snake_case
-  random_trades_count: number;  // ← CHANGÉ: snake_case
-  trading_duration_hours: number;  // ← CHANGÉ: snake_case
+  token_pair: string;
+  isActive: boolean;
+  status: "active" | "paused" | "error";
+
+  volatility_percent: number;
+  random_trades_count: number;
+  trading_duration_hours: number;
+  swap_amount: number;
+
+  wallet_address: string;
+  wallet_private_key: string;
+  rpc_endpoint: string;
+  wpol_address: string;
+  kno_address: string;
+  router_address: string;
+  quoter_address: string;
+
+  slippage_tolerance: number;
+  gas_limit: number;
+  gas_price: number;
+
   balance: number;
-  total_profit: number;  // ← CHANGÉ: snake_case
-  last_buy_price?: number;  // ← CHANGÉ: snake_case
-  last_sell_price?: number;  // ← CHANGÉ: snake_case
-  
-  // Configuration Wallet
-  wallet_address?: string;
-  rpc_endpoint?: string;
-  wpol_address?: string;
-  kno_address?: string;
-  router_address?: string;
-  quoter_address?: string;
-  slippage_tolerance?: number;
-  gas_limit?: number;
-  gas_price?: number;
-  
-  // Champs dates
-  created_at: string;
-  updated_at: string;
+  total_profit: number;
 }
 
 export interface Transaction {
+  bot_id: any;
+  botId: string;
   id: number;
   type: 'buy' | 'sell';
   amount: number;
@@ -193,6 +203,9 @@ export interface Transaction {
 }
 
 class ApiService {
+  updateBotReferencePrice(botId: string, price: number) {
+    throw new Error("Method not implemented.");
+  }
   private token: string | null = null;
 
   setToken(token: string) {

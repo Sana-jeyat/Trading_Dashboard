@@ -1,12 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { useBotContext } from '../context/BotContext';
-import { History, Filter, TrendingUp, TrendingDown, Calendar, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { useBotContext } from "../context/BotContext";
+import {
+  History,
+  Filter,
+  TrendingUp,
+  TrendingDown,
+  Calendar,
+  RefreshCw,
+} from "lucide-react";
 
 function TransactionHistory() {
   const { transactions, selectedBot, loading, refreshData } = useBotContext();
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState("all");
 
-  
   // Rafraîchissement automatique
   useEffect(() => {
     const interval = setInterval(() => {
@@ -16,22 +22,25 @@ function TransactionHistory() {
     return () => clearInterval(interval);
   }, [refreshData]);
 
-  const filteredTransactions = filter === 'all' 
-    ? transactions 
-    : transactions.filter(t => t.type === filter);
+  const filteredTransactions =
+    filter === "all"
+      ? transactions
+      : transactions.filter((t) => t.type === filter);
 
   const totalProfit = transactions
-    .filter(t => t.profit)
+    .filter((t) => t.profit)
     .reduce((acc, t) => acc + (t.profit || 0), 0);
 
-  const totalBuys = transactions.filter(t => t.type === 'buy').length;
-  const totalSells = transactions.filter(t => t.type === 'sell').length;
+  const totalBuys = transactions.filter((t) => t.type === "buy").length;
+  const totalSells = transactions.filter((t) => t.type === "sell").length;
 
-if (loading) {
+  if (loading) {
     return (
       <div className="p-6 flex items-center justify-center">
         <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
-        <span className="ml-3 text-gray-600">Chargement des transactions...</span>
+        <span className="ml-3 text-gray-600">
+          Chargement des transactions...
+        </span>
       </div>
     );
   }
@@ -85,7 +94,9 @@ if (loading) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Profit Réalisé</p>
-              <p className="text-2xl font-bold text-green-600">${totalProfit.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-green-600">
+                ${totalProfit.toFixed(2)}
+              </p>
             </div>
             <div className="p-3 bg-green-50 rounded-lg">
               <Calendar className="w-6 h-6 text-green-600" />
@@ -98,7 +109,9 @@ if (loading) {
       <div className="bg-white rounded-xl shadow-md border border-gray-200">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">Transactions</h2>
+            <h2 className="text-xl font-semibold text-gray-900">
+              Transactions
+            </h2>
             <div className="flex items-center space-x-3">
               <Filter className="w-5 h-5 text-gray-400" />
               <select
@@ -137,31 +150,46 @@ if (loading) {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredTransactions.map((transaction) => (
-                <tr key={transaction.id} className="hover:bg-gray-50 transition-colors">
+                <tr
+                  key={transaction.id}
+                  className="hover:bg-gray-50 transition-colors"
+                >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center space-x-2">
-                      <div className={`p-2 rounded-lg ${
-                        transaction.type === 'buy' ? 'bg-blue-50' : 'bg-green-50'
-                      }`}>
-                        {transaction.type === 'buy' ? 
-                          <TrendingDown className="w-4 h-4 text-blue-600" /> :
+                      <div
+                        className={`p-2 rounded-lg ${
+                          transaction.type === "buy"
+                            ? "bg-blue-50"
+                            : "bg-green-50"
+                        }`}
+                      >
+                        {transaction.type === "buy" ? (
+                          <TrendingDown className="w-4 h-4 text-blue-600" />
+                        ) : (
                           <TrendingUp className="w-4 h-4 text-green-600" />
-                        }
+                        )}
                       </div>
-                      <span className={`font-medium capitalize ${
-                        transaction.type === 'buy' ? 'text-blue-700' : 'text-green-700'
-                      }`}>
-                        {transaction.type === 'buy' ? 'Achat' : 'Vente'}
+                      <span
+                        className={`font-medium capitalize ${
+                          transaction.type === "buy"
+                            ? "text-blue-700"
+                            : "text-green-700"
+                        }`}
+                      >
+                        {transaction.type === "buy" ? "Achat" : "Vente"}
                       </span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-gray-900 font-medium">
-                    {transaction.amount.toLocaleString()} {selectedBot.tokenPair}
+                    {transaction.amount.toLocaleString()}{" "}
+                    {selectedBot.token_pair}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-gray-900 font-medium">
-                    {"€" + (selectedBot.tokenPair.includes('BTC') || selectedBot.tokenPair.includes('ETH') ? 
-                      transaction.price.toLocaleString() : 
-                      transaction.price.toFixed(4))}
+                    {"€" +
+                      (selectedBot.token_pair.includes("BTC") ||
+                      selectedBot.token_pair.includes("ETH")
+                        ? transaction.price.toLocaleString()
+                        : transaction.price.toFixed(4))}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {transaction.profit ? (
@@ -183,7 +211,9 @@ if (loading) {
 
         {filteredTransactions.length === 0 && (
           <div className="p-8 text-center">
-            <p className="text-gray-500">Aucune transaction trouvée pour ce filtre</p>
+            <p className="text-gray-500">
+              Aucune transaction trouvée pour ce filtre
+            </p>
           </div>
         )}
       </div>

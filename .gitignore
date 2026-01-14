@@ -23,3 +23,24 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+
+# ===== PYTHON =====
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+env/
+.venv312/
+.venv/
+ENV/
+
+# Pip
+pip-log.txt
+pip-delete-this-directory.txt
+
+# PyCharm
+.idea/

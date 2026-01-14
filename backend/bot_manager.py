@@ -8,6 +8,9 @@ from database import SessionLocal
 import json
 import logging
 import threading
+import sys
+from utils import get_current_price
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -25,17 +28,22 @@ class BotManager:
         if bot.id in self.running_bots:
             logger.info(f"Bot {bot.id} déjà en cours d'exécution")
             return
-        
+
+        # ⚡ Ici tu peux récupérer le prix actuel
+        current_price = get_current_price(bot.token_pair)
+        logger.info(f"Prix actuel de {bot.token_pair}: {current_price}")
+
         self.bot_info[bot.id] = {
             'id': bot.id,
             'name': bot.name,
-            'pid': None
+            'pid': None,
+            'current_price': current_price  # optionnel si tu veux stocker
         }
-        
+
         # Créer le fichier de configuration pour le bot
         config_file = self._create_bot_config(bot)
         
-        command = ["python", "trading_bot.py"]
+        command = [sys.executable, "trading_bot.py"]
         
         try:
             env = os.environ.copy()
@@ -138,7 +146,9 @@ class BotManager:
             "trading_duration_hours": bot.trading_duration_hours,
             "last_buy_price": bot.last_buy_price,
             "last_sell_price": bot.last_sell_price,
-            "api_endpoint": "http://localhost:8000"
+            "api_endpoint": "http://localhost:8000",
+            "volatility_percent": bot.volatility_percent if hasattr(bot, 'volatility_percent') else 10,
+
         }
         
         config_file = os.path.join(self.bot_configs_dir, f"bot_{bot.id}_config.json")

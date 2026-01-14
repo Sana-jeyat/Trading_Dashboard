@@ -3,25 +3,43 @@
 ## Installation
 
 1. **Créer un environnement virtuel** :
+
 ```bash
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
 # ou
 venv\Scripts\activate  # Windows
+.venv312\Scripts\activate
+```
+
+**Démarrer FASTAPI**
+
+```bash
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**Pour lancer l'environnement**:
+
+```bash
+.venv312\Scripts\python.exe main.py
+.venv312\Scripts\python.exe trading_bot.py
 ```
 
 2. **Installer les dépendances** :
+
 ```bash
 pip install -r requirements.txt
 ```
 
 3. **Configuration** :
+
 ```bash
 cp .env.example .env
 # Éditez le fichier .env avec vos paramètres
 ```
 
 4. **Initialiser la base de données** :
+
 ```bash
 python -c "from database import engine; from models import Base; Base.metadata.create_all(bind=engine)"
 ```
@@ -39,10 +57,12 @@ Documentation interactive : http://localhost:8000/docs
 ## Structure de l'API
 
 ### Authentification
+
 - `POST /auth/register` - Créer un compte
 - `POST /auth/login` - Se connecter
 
 ### Gestion des bots
+
 - `GET /bots` - Liste des bots
 - `POST /bots` - Créer un bot
 - `GET /bots/{id}` - Détails d'un bot
@@ -52,10 +72,12 @@ Documentation interactive : http://localhost:8000/docs
 - `POST /bots/{id}/stop` - Arrêter un bot
 
 ### Transactions
+
 - `GET /bots/{id}/transactions` - Transactions d'un bot
 - `GET /transactions` - Toutes les transactions
 
 ### Statistiques
+
 - `GET /stats` - Statistiques globales
 
 ## Intégration avec vos scripts
