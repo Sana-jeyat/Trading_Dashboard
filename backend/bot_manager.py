@@ -49,7 +49,7 @@ class BotManager:
             env = os.environ.copy()
             env.update({
                 'BOT_ID': str(bot.id),
-                'API_URL': 'http://localhost:8000'
+                'API_URL': 'http://http://mmk.knocoin.com/'
             })
             
             process = subprocess.Popen(
@@ -146,7 +146,7 @@ class BotManager:
             "trading_duration_hours": bot.trading_duration_hours,
             "last_buy_price": bot.last_buy_price,
             "last_sell_price": bot.last_sell_price,
-            "api_endpoint": "http://localhost:8000",
+            "api_endpoint": "http://mmk.knocoin.com/",
             "volatility_percent": bot.volatility_percent if hasattr(bot, 'volatility_percent') else 10,
 
         }

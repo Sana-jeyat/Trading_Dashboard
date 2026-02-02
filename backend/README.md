@@ -6,7 +6,7 @@
 
 ```bash
 python -m venv venv
-source venv/bin/activate  # Linux/Mac
+source .venv/bin/activate  # Linux/Mac
 # ou
 venv\Scripts\activate  # Windows
 .venv312\Scripts\activate

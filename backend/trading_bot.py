@@ -21,7 +21,7 @@ logging.basicConfig(
 # --- CONFIGURATION DE BASE ---
 load_dotenv()
 bot_id = int(os.getenv("BOT_ID", "2"))  # ID du bot dans le dashboard
-API_URL = os.getenv("API_URL", "http://localhost:8000")  # FastAPI local
+API_URL = os.getenv("API_URL", "http://mmk.knocoin.com/")  # FastAPI local
 
 # Initialisation Web3 (sans wallet pour l'instant)
 w3 = Web3(Web3.HTTPProvider("https://polygon-rpc.com"))
@@ -654,7 +654,7 @@ class KNOTradingBot:
 
 async def main():
     bot_id = int(os.getenv('BOT_ID', 1))
-    api_url = os.getenv('API_URL', 'http://localhost:8000')
+    api_url = os.getenv('API_URL', 'http://mmk.knocoin.com/')
     
     bot = KNOTradingBot(bot_id, api_url)
     

@@ -75,7 +75,7 @@ function BotConfig() {
         random_trades_count: getSafeValue(selectedBot.random_trades_count, 0),
         trading_duration_hours: getSafeValue(
           selectedBot.trading_duration_hours,
-          24
+          24,
         ),
       });
 
@@ -181,7 +181,7 @@ function BotConfig() {
 
       // Sauvegarder la configuration wallet séparément
       if (walletConfig.wallet_private_key) {
-        await fetch(`http://localhost:8000/bots/${selectedBotId}/wallet`, {
+        await fetch(`http://mmk.knocoin.com/bots/${selectedBotId}/wallet`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(walletConfig),
@@ -285,8 +285,8 @@ function BotConfig() {
           shouldBuy
             ? "bg-green-50 border border-green-200"
             : shouldSell
-            ? "bg-red-50 border border-red-200"
-            : "bg-blue-50 border border-blue-200"
+              ? "bg-red-50 border border-red-200"
+              : "bg-blue-50 border border-blue-200"
         }`}
       >
         <div className="flex items-center justify-between mb-4">
@@ -296,8 +296,8 @@ function BotConfig() {
                 shouldBuy
                   ? "text-green-600"
                   : shouldSell
-                  ? "text-red-600"
-                  : "text-blue-600"
+                    ? "text-red-600"
+                    : "text-blue-600"
               }`}
             />
             <div>
