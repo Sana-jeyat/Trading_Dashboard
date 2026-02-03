@@ -263,14 +263,19 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
 
   const addBot = async (botData: Omit<BotConfig, "id">) => {
     try {
+      // Forcer buy/sell à minimum 0.01
+      const buyAmount = botData.buy_amount >= 0.01 ? botData.buy_amount : 0.01;
+      const sellAmount =
+        botData.sell_amount >= 0.01 ? botData.sell_amount : 0.01;
+
       const apiBotData = {
         name: botData.name,
         token_pair: botData.token_pair || "KNO/WPOL",
 
         // Paramètres KNO
         volatility_percent: botData.volatility_percent,
-        buy_amount: botData.buy_amount,
-        sell_amount: botData.sell_amount,
+        buy_amount: buyAmount,
+        sell_amount: sellAmount,
         min_swap_amount: botData.min_swap_amount,
         reference_price: botData.reference_price,
 
