@@ -20,8 +20,8 @@ logging.basicConfig(
 
 # --- CONFIGURATION DE BASE ---
 load_dotenv()
-bot_id = int(os.getenv("BOT_ID", "2"))  # ID du bot dans le dashboard
-API_URL = os.getenv("API_URL", "http://mmk.knocoin.com/")  # FastAPI local
+bot_id = int(os.getenv("BOT_ID", "1"))  # ID du bot dans le dashboard
+API_URL = os.getenv("API_URL_LOCAL", "http://127.0.0.1:3000")  # FastAPI local
 
 # Initialisation Web3 (sans wallet pour l'instant)
 w3 = Web3(Web3.HTTPProvider("https://polygon-rpc.com"))
@@ -91,6 +91,14 @@ class KNOTradingBot:
         self.is_running = False
         self.reference_price = None
         self.logger = logging.getLogger(f"kno_bot_{bot_id}")
+        self.last_rpc_call = 0
+        self.rpc_min_interval = 0.25  # max 4 req/s
+
+        self.cached_gas_price = None
+        self.last_gas_update = 0
+
+        self.last_trade_time = 0
+        self.trade_cooldown = 300  # 5 min entre trades
         
 
         
@@ -112,7 +120,9 @@ class KNOTradingBot:
                     "gas_limit": bot_data.get("gas_limit", 500000),
                     "gas_price": bot_data.get("gas_price", 40)
                 }
-                
+                db_ref = bot_data.get("reference_price")
+                if db_ref:
+                    self.reference_price = float(db_ref)
                 # Wallet
                 self.wallet_address = bot_data.get("wallet_address")
                 self.private_key = bot_data.get("wallet_private_key")
@@ -145,6 +155,25 @@ class KNOTradingBot:
         return None
     
     # --- OUTILS WEB3 ---
+    def wait_receipt_slow(self, tx_hash, timeout=180):
+        start = time.time()
+        while time.time() - start < timeout:
+            try:
+                self.rpc_sleep()
+                receipt = w3.eth.get_transaction_receipt(tx_hash)
+                if receipt:
+                    return receipt
+            except:
+                pass
+            time.sleep(5)  # 🔥 polling lent
+        return None
+
+    def rpc_sleep(self):
+        now = time.time()
+        diff = now - self.last_rpc_call
+        if diff < self.rpc_min_interval:
+            time.sleep(self.rpc_min_interval - diff)
+        self.last_rpc_call = time.time()
     def to_wei(self, amount, decimals):
         return int(float(amount) * 10**decimals)
 
@@ -176,7 +205,9 @@ class KNOTradingBot:
         })
         signed = w3.eth.account.sign_transaction(tx, self.private_key)
         tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
-        w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+        receipt = self.wait_receipt_slow(tx_hash)
+        if not receipt or receipt.status != 1:
+            return False
         return True
 
     def cancel_pending_transactions(self):
@@ -242,10 +273,11 @@ class KNOTradingBot:
         
     # --- GAS PRICE DYNAMIQUE SELON RÉSEAU ---
     def get_dynamic_gas_price(self):
-        try:
-            return w3.eth.gas_price  # en wei
-        except:
-            return w3.to_wei(self.config.get("gas_price", 40), "gwei")
+        if time.time() - self.last_gas_update > 30:
+            self.rpc_sleep()
+            self.cached_gas_price = w3.eth.gas_price
+            self.last_gas_update = time.time()
+        return int(self.cached_gas_price * 1.2)
 
     # --- WRAP/UNWRAP ---
     def wrap_pol(self, amount_pol):
@@ -293,70 +325,27 @@ class KNOTradingBot:
     
     # --- TRADING AVEC MONTANTS VARIABLES ---
     def buy_kno(self, current_price):
-        # ref_price = self.config["reference_price"]
-        ref_price = self.reference_price
-        """Exécute un achat avec le montant configuré dans le dashboard"""
-
-         # 1️⃣ Annulation des transactions pending
-        if not self.cancel_pending_transactions():
-            self.logger.warning("Impossible d'annuler les transactions en attente, attente 1 min...")
-            time.sleep(60)  # ou return False
-
         try:
-            if not self.wallet_address or not self.private_key:
-                self.logger.error("Wallet non configuré pour l'achat")
-                return False
-
             self.logger.info("Préparation de l'achat KNO...")
 
-            # Récupérer le montant d'achat CONFIGURABLE
-            buy_amount = self.config["buy_amount"]
-            min_swap_amount = self.config["min_swap_amount"]
-            
-            # Vérifier le montant minimum
-            if buy_amount < min_swap_amount:
-                self.logger.warning(f"Montant d'achat {buy_amount} inférieur au minimum {min_swap_amount}")
+            # ⛔ évite spam si un trade vient d’être fait
+            if time.time() - self.last_trade_time < 60:
+                self.logger.info("Cooldown actif, achat ignoré")
                 return False
 
+            amt = self.config["buy_amount"]
+            amt_wei = self.to_wei(amt, 18)
 
-            pol_balance = self.from_wei(w3.eth.get_balance(self.wallet_address), 18)
-            gas_reserve = 0.05  # POL à garder pour les fees
-
-            if pol_balance < gas_reserve:
-                self.logger.warning(f"Pas assez de POL pour le gas ({pol_balance:.4f} POL)")
-                return False
-            # Balance WPOL
-            balance_wpol = self.from_wei(token_wpol.functions.balanceOf(self.wallet_address).call(), 18)
-            
-            # Vérifier si assez de WPOL, sinon wrap automatiquement
-            balance_wpol = self.from_wei(token_wpol.functions.balanceOf(self.wallet_address).call(), 18)
-            if balance_wpol < buy_amount:
-                wrap_needed = buy_amount - balance_wpol
-                self.logger.info(f"Pas assez de WPOL, wrapping {wrap_needed:.4f} POL...")
-                if not self.wrap_pol(wrap_needed):
-                    self.logger.error("Wrap échoué")
-                    return False
-                balance_wpol = self.from_wei(token_wpol.functions.balanceOf(self.wallet_address).call(), 18)
-
-            # Utiliser le montant configuré ou la balance disponible (le plus petit)
-            amt_decimal = min(buy_amount, balance_wpol)
-            amt_wei = self.to_wei(amt_decimal, 18)
-            
-            self.logger.info(f"Montant WPOL à swap: {amt_decimal:.6f} (configuré: {buy_amount})")
-
-            if not self.approve_token(token_wpol, ROUTER, amt_wei, "WPOL"):
-                return False
-
-
-            # Balance KNO avant achat
             old_kno_balance = token_kno.functions.balanceOf(self.wallet_address).call()
 
+            # 🔥 anti rate limit
+            self.rpc_sleep()
             amounts = router.functions.getAmountsOut(amt_wei, [WPOL, KNO]).call()
-            slippage = max(self.get_dynamic_slippage(current_price, ref_price),3)
+
+            slippage = max(self.get_dynamic_slippage(current_price, self.reference_price), 3)
             min_out = int(amounts[-1] * (1 - slippage / 100))
             deadline = int(time.time()) + 600
 
-            # router.functions.swapExactTokensForTokens(
             tx = router.functions.swapExactTokensForTokensSupportingFeeOnTransferTokens(
                 amt_wei,
                 min_out,
@@ -371,30 +360,62 @@ class KNOTradingBot:
             })
 
             signed = w3.eth.account.sign_transaction(tx, self.private_key)
+
+            # 🔥 RPC limité
+            self.rpc_sleep()
             tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
             self.logger.info(f"Swap envoyé: {w3.to_hex(tx_hash)}")
-            receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
 
-            success = receipt.status == 1
-            if success:
-                # Balance KNO après achat
-                new_kno_balance = token_kno.functions.balanceOf(self.wallet_address).call()
+            # 🔥 receipt lent (clé anti rate limit)
+            receipt = None
+            for _ in range(60):  # max 5 minutes
+                try:
+                    self.rpc_sleep()
+                    receipt = w3.eth.get_transaction_receipt(tx_hash)
+                    if receipt:
+                        break
+                except:
+                    pass
+                time.sleep(5)
 
-                received_wei = new_kno_balance - old_kno_balance
-                received_kno = self.from_wei(received_wei, 18)
+            if not receipt:
+                self.logger.error("Timeout receipt")
+                return False
 
-                self.logger.info(f"Achat réussi ! {received_kno:.6f} KNO reçus")
-                self.report_trade("buy", received_kno, current_price)
-            else:
+            if receipt.status != 1:
                 self.logger.error("Achat échoué - receipt.status=0")
-            return success
+                return False
+
+            new_kno_balance = token_kno.functions.balanceOf(self.wallet_address).call()
+            received_wei = new_kno_balance - old_kno_balance
+            received_kno = self.from_wei(received_wei, 18)
+
+            self.logger.info(f"Achat réussi ! {received_kno:.6f} KNO reçus")
+            self.report_trade("buy", received_kno, current_price)
+            self.last_trade_time = time.time()
+            return True
+
         except Exception as e:
-            self.logger.error(f"Erreur achat: {e}")
+            err = str(e)
+
+            if "-32090" in err or "rate" in err.lower():
+                delay = random.randint(20, 45)
+                self.logger.warning(f"Rate limit RPC → pause {delay}s")
+                time.sleep(delay)
+                return False
+
+            self.logger.error(f"Erreur buy_kno: {e}")
             return False
 
+
     def sell_kno(self, current_price):
-        """Exécute une vente avec le montant configuré dans le dashboard"""
+        """Exécute une vente KNO avec protections contre rate-limit et cooldown"""
         ref_price = self.reference_price
+
+        # Cooldown entre ventes
+        if time.time() - self.last_trade_time < 60:  # 1 min
+            self.logger.info("Cooldown actif, vente ignorée")
+            return False
 
         # Annulation des transactions pending
         if not self.cancel_pending_transactions():
@@ -409,8 +430,8 @@ class KNOTradingBot:
             self.logger.info("Début de la vente KNO...")
 
             # Montants configurables
-            sell_amount = self.config["sell_amount"]
-            min_swap_amount = self.config["min_swap_amount"]
+            sell_amount = self.config.get("sell_amount", 0.01)
+            min_swap_amount = self.config.get("min_swap_amount", 0.01)
 
             # Vérifier le montant minimum
             if sell_amount < min_swap_amount:
@@ -418,6 +439,7 @@ class KNOTradingBot:
                 return False
 
             # Check POL pour le gas
+            self.rpc_sleep()
             pol_balance = self.from_wei(w3.eth.get_balance(self.wallet_address), 18)
             gas_reserve = 0.05
             if pol_balance < gas_reserve:
@@ -425,6 +447,7 @@ class KNOTradingBot:
                 return False
 
             # Balance KNO
+            self.rpc_sleep()
             balance_kno = self.from_wei(token_kno.functions.balanceOf(self.wallet_address).call(), 18)
             self.logger.info(f"Balance KNO: {balance_kno:.6f}")
             if balance_kno < min_swap_amount:
@@ -441,9 +464,11 @@ class KNOTradingBot:
                 return False
 
             # Balance WPOL avant swap
+            self.rpc_sleep()
             old_balance_wpol = token_wpol.functions.balanceOf(self.wallet_address).call()
 
             # Slippage et min_out
+            self.rpc_sleep()
             amounts = router.functions.getAmountsOut(amt_wei, [KNO, WPOL]).call()
             slippage = max(self.get_dynamic_slippage(current_price, ref_price), 3)
             min_out = int(amounts[-1] * (1 - slippage / 100))
@@ -452,6 +477,8 @@ class KNOTradingBot:
             deadline = int(time.time()) + 600
 
             # Build transaction swap
+           # Avant d'envoyer le swap
+            nonce = w3.eth.get_transaction_count(self.wallet_address, 'pending')
             tx = router.functions.swapExactTokensForTokensSupportingFeeOnTransferTokens(
                 amt_wei,
                 min_out,
@@ -460,41 +487,65 @@ class KNOTradingBot:
                 deadline
             ).build_transaction({
                 "from": self.wallet_address,
-                "nonce": self.get_nonce(),
+                "nonce": nonce,
                 "gas": self.config["gas_limit"],
                 "gasPrice": self.get_dynamic_gas_price()
             })
 
             signed = w3.eth.account.sign_transaction(tx, self.private_key)
-            tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
-            self.logger.info(f"Swap KNO → WPOL envoyé: {w3.to_hex(tx_hash)}")
 
-            receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=180)
-            success = receipt.status == 1
+            # Retry intelligent sur RPC limit
+            receipt = None
+            for attempt in range(5):
+                try:
+                    self.rpc_sleep()
+                    tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+                    self.logger.info(f"Swap KNO → WPOL envoyé: {w3.to_hex(tx_hash)}")
+                    receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=180)
+                    if receipt.status == 1:
+                        break
+                    else:
+                        self.logger.warning("Transaction échouée, retry possible...")
+                except Exception as e:
+                    if "-32090" in str(e) or "rate" in str(e).lower():
+                        delay = random.randint(10, 20)
+                        self.logger.warning(f"Rate limit RPC → pause {delay}s")
+                        time.sleep(delay)
+                    else:
+                        raise
 
-            if success:
-                # Calcul gain réel
-                new_balance_wpol = token_wpol.functions.balanceOf(self.wallet_address).call()
-                gained_wei = new_balance_wpol - old_balance_wpol
-                gained_wpol = self.from_wei(gained_wei, 18)
+            if not receipt or receipt.status != 1:
+                self.logger.error("Vente échouée après retries")
+                return False
 
-                self.logger.info(f"Vente réussie ! {amt_decimal:.6f} KNO vendus")
-                self.logger.info(f"WPOL réellement reçus: {gained_wpol:.6f}")
+            # Calcul gain réel
+            self.rpc_sleep()
+            new_balance_wpol = token_wpol.functions.balanceOf(self.wallet_address).call()
+            gained_wei = new_balance_wpol - old_balance_wpol
+            gained_wpol = self.from_wei(gained_wei, 18)
 
-                # Unwrap WPOL si besoin
-                if not self.unwrap_wpol(gained_wei):
-                    self.logger.warning("Unwrap WPOL échoué")
+            self.logger.info(f"Vente réussie ! {amt_decimal:.6f} KNO vendus")
+            self.logger.info(f"WPOL réellement reçus: {gained_wpol:.6f}")
 
-                self.write_price(SELL_PRICE_FILE, current_price)
+            # Unwrap WPOL si besoin
+            if not self.unwrap_wpol(gained_wei):
+                self.logger.warning("Unwrap WPOL échoué")
 
-                # Report au backend
-                self.report_trade("sell", gained_wpol, current_price)
+            # Stocker prix de vente
+            self.write_price(SELL_PRICE_FILE, current_price)
 
-            return success
+            # Report au backend
+            self.report_trade("sell", gained_wpol, current_price)
+
+            # Update cooldown
+            self.last_trade_time = time.time()
+
+            return True
 
         except Exception as e:
             self.logger.error(f"Erreur lors de la vente KNO: {e}")
             return False
+
 
     # --- DASHBOARD COMMUNICATION ---
     def report_trade(self, action, amount, price, profit=None):
@@ -546,12 +597,12 @@ class KNOTradingBot:
             self.logger.error("Configuration wallet manquante - vérifiez le dashboard")
             return
 
-        self.update_status("online")
+        self.update_status("active")
         self.logger.info("Bot trading KNO démarré")
 
         # Annulation des transactions en attente
         self.logger.info("Vérification des transactions en attente...")
-        self.cancel_pending_transactions()
+        # self.cancel_pending_transactions()
 
         trade_count = 0
         try:
@@ -570,15 +621,17 @@ class KNOTradingBot:
                 # --- Initialisation de la référence de prix si elle n'existe pas ---
                 # ref_price = self.config.get("reference_price")
 
-                if self.reference_price is None:
+               # Si l'utilisateur n'a PAS défini de référence, on en crée une
+                if not self.reference_price:
+                    self.logger.info("Aucune référence définie, initialisation avec le prix actuel")
                     self.reference_price = price
                     try:
                         requests.put(
                             f"{self.api_url}/bots/{self.bot_id}/reference-price",
                             json={"price": price}
                         )
-                    except:
-                        pass
+                    except Exception as e:
+                        self.logger.warning(f"Impossible d'initialiser la référence: {e}")
 
                 ref_price = self.reference_price
 
@@ -598,10 +651,10 @@ class KNOTradingBot:
                 delta_percent = (price - ref_price) / ref_price * 100
                 self.logger.info(f"Delta % par rapport à référence: {delta_percent:.4f}%")
                 
-                buy_condition = price <= ref_price * (1 - volatility)
-                # buy_condition = True
-                sell_condition = price >= ref_price * (1 + volatility)
-                # sell_condition = True
+                # buy_condition = price <= ref_price * (1 - volatility)
+                buy_condition = False
+                # sell_condition = price >= ref_price * (1 + volatility)
+                sell_condition = True
 
                 self.logger.info(f"Prix actuel: {price:.6f}€, Référence: {ref_price:.6f}€, Volatilité: {volatility*100:.1f}%")
                 self.logger.info(f"Buy condition: {buy_condition}, Sell condition: {sell_condition}")
@@ -635,9 +688,9 @@ class KNOTradingBot:
                 self.write_price(PRICE_FILE, price)
                 self.send_heartbeat()
                 
-                delay = random.randint(30, 50)
-                self.logger.info(f"Prochain cycle dans {delay} secondes...")
-                await asyncio.sleep(delay)
+                delay = random.randint(1, 5)
+                self.logger.info(f"Prochain cycle dans {delay} minutes...")
+                await asyncio.sleep(delay * 60)
 
         except KeyboardInterrupt:
             self.logger.info("Arrêt demandé par l'utilisateur")
@@ -653,11 +706,13 @@ class KNOTradingBot:
         self.logger.info("Arrêt du bot demandé")
 
 async def main():
-    bot_id = int(os.getenv('BOT_ID', 1))
-    api_url = os.getenv('API_URL', 'http://mmk.knocoin.com/')
+    bot_id = int(os.getenv('BOT_ID', '1'))
+    API_URL = os.getenv("API_URL", "http://127.0.0.1:3000")
+    api_url = API_URL
     
     bot = KNOTradingBot(bot_id, api_url)
-    
+    bot.logger.info(f"Démarrage du bot KNO avec ID {bot_id} et API_URL {api_url}")
+
     try:
         await bot.start()
     except KeyboardInterrupt:

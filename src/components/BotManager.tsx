@@ -33,12 +33,19 @@ const initialBotState: Omit<BotConfig, "id"> = {
   slippage_tolerance: 1,
   gas_limit: 300000,
   gas_price: 30,
-  buy_amount: 0,
-  sell_amount: 0,
+  buy_amount: 0.01,
+  sell_amount: 0.01,
   min_swap_amount: 0,
   reference_price: null,
   last_buy_price: null,
   last_sell_price: null,
+  // buy_percentage_drop: null,
+  // sell_percentage_gain: null,
+  // buy_price_threshold: null,
+  // sell_price_threshold: null,
+  // created_at: null,
+  // updated_at: null,
+  // last_heartbeat: null,
 };
 
 function BotManager() {
@@ -51,19 +58,51 @@ function BotManager() {
     return token_pair.split("/")[0] || "token";
   };
 
+  // const handleAddBot = async () => {
+  //   if (newBot.name && newBot.token_pair) {
+  //     try {
+  //       await addBot(newBot);
+  //       setNewBot(initialBotState);
+  //       setShowAddForm(false);
+  //       alert("Bot créé avec succès! 🚀");
+  //     } catch (error: any) {
+  //       console.error("Erreur création bot:", error);
+  //       alert("Erreur lors de la création: " + error.message);
+  //     }
+  //   } else {
+  //     alert("Veuillez renseigner le nom et la paire de trading.");
+  //   }
+  // };
+
   const handleAddBot = async () => {
-    if (newBot.name && newBot.token_pair) {
-      try {
-        await addBot(newBot);
-        setNewBot(initialBotState);
-        setShowAddForm(false);
-        alert("Bot créé avec succès! 🚀");
-      } catch (error: any) {
-        console.error("Erreur création bot:", error);
-        alert("Erreur lors de la création: " + error.message);
-      }
-    } else {
+    if (!newBot.name || !newBot.token_pair) {
       alert("Veuillez renseigner le nom et la paire de trading.");
+      return;
+    }
+
+    try {
+      // 🔹 Récupérer le prix actuel du marché
+      const { getKnoPrice } = useBotContext(); // ou ta fonction de récupération
+      const marketPrice = await getKnoPrice(); // peut retourner null si erreur
+
+      // 🔹 Calculer les montants selon le marché
+      const buyAmount = Math.max(0.01, (marketPrice ?? 1) * 0.05); // 5% du prix ou minimum 0.01
+      const sellAmount = Math.max(0.01, (marketPrice ?? 1) * 0.05);
+
+      const botToCreate = {
+        ...newBot,
+        buy_amount: buyAmount,
+        sell_amount: sellAmount,
+        reference_price: marketPrice ?? 0.001,
+      };
+
+      await addBot(botToCreate);
+      setNewBot(initialBotState);
+      setShowAddForm(false);
+      alert("Bot créé avec succès! 🚀");
+    } catch (error: any) {
+      console.error("Erreur création bot:", error);
+      alert("Erreur lors de la création: " + error.message);
     }
   };
 
@@ -164,46 +203,6 @@ function BotManager() {
               </p>
             </div>
 
-            {/* Buy amount */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Montant achat
-              </label>
-              <input
-                type="number"
-                min={0.01}
-                step={0.01}
-                value={newBot.buy_amount}
-                onChange={(e) =>
-                  setNewBot((prev) => ({
-                    ...prev,
-                    buy_amount: parseFloat(e.target.value),
-                  }))
-                }
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            {/* Sell amount */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Montant vente
-              </label>
-              <input
-                type="number"
-                min={0.01}
-                step={0.01}
-                value={newBot.sell_amount}
-                onChange={(e) =>
-                  setNewBot((prev) => ({
-                    ...prev,
-                    sell_amount: parseFloat(e.target.value),
-                  }))
-                }
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
             {/* Random trades */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -217,7 +216,7 @@ function BotManager() {
                 onChange={(e) =>
                   setNewBot((prev) => ({
                     ...prev,
-                    random_trades_count: parseInt(e.target.value), // ✅ correspond à l'API
+                    random_trades_count: parseInt(e.target.value),
                   }))
                 }
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -237,7 +236,7 @@ function BotManager() {
                 onChange={(e) =>
                   setNewBot((prev) => ({
                     ...prev,
-                    tradingDurationHours: parseInt(e.target.value),
+                    trading_duration_hours: parseInt(e.target.value),
                   }))
                 }
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"

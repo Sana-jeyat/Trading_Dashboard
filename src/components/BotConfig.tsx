@@ -51,12 +51,14 @@ function BotConfig() {
     gas_price: 30,
     random_trades_count: 0,
     trading_duration_hours: 24,
-  });
-
-  const [walletConfig, setWalletConfig] = useState({
     wallet_address: "",
     wallet_private_key: "",
   });
+
+  // const [walletConfig, setWalletConfig] = useState({
+  //   wallet_address: "",
+  //   wallet_private_key: "",
+  // });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -77,12 +79,14 @@ function BotConfig() {
           selectedBot.trading_duration_hours,
           24,
         ),
-      });
-
-      setWalletConfig({
         wallet_address: getSafeValue(selectedBot.wallet_address, ""),
         wallet_private_key: "",
       });
+
+      // setWalletConfig({
+      //   wallet_address: getSafeValue(selectedBot.wallet_address, ""),
+      //   wallet_private_key: "",
+      // });
     }
   }, [selectedBot]);
 
@@ -118,12 +122,12 @@ function BotConfig() {
       newErrors.volatility_percent = "Doit être entre 0.1% et 100%";
     }
 
-    if (
-      walletConfig.wallet_address &&
-      !/^0x[a-fA-F0-9]{40}$/.test(walletConfig.wallet_address)
-    ) {
-      newErrors.wallet_address = "Adresse Ethereum invalide";
-    }
+    // if (
+    //   walletConfig.wallet_address &&
+    //   !/^0x[a-fA-F0-9]{40}$/.test(walletConfig.wallet_address)
+    // ) {
+    //   newErrors.wallet_address = "Adresse Ethereum invalide";
+    // }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -138,22 +142,6 @@ function BotConfig() {
     setSaving(true);
 
     try {
-      // Préparer walletConfig avec toutes les adresses et rpc_endpoint
-      const walletConfig: WalletConfig = {
-        wallet_address: selectedBot?.wallet_address || "",
-        wallet_private_key: selectedBot?.wallet_private_key || "",
-        rpc_endpoint: selectedBot?.rpc_endpoint || "https://polygon-rpc.com",
-        wpol_address:
-          selectedBot?.wpol_address ||
-          "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
-        kno_address:
-          selectedBot?.kno_address ||
-          "0x236fbfAa3Ec9E0B9BA013Df370c098bAd85aD631",
-        router_address:
-          selectedBot?.router_address ||
-          "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff",
-      };
-
       // Préparer les données de mise à jour principale
       const updateData: any = {
         volatility_percent: config.volatility_percent,
@@ -166,27 +154,60 @@ function BotConfig() {
         gas_price: config.gas_price,
         random_trades_count: config.random_trades_count,
         trading_duration_hours: config.trading_duration_hours,
+        wallet_address: config.wallet_address, // ✅ inclure l'adresse modifiée
+        wallet_private_key: config.wallet_private_key, // ✅ inclure la clé privée modifiée
       };
-
-      // Ajouter l'adresse wallet si modifiée
-      if (
-        selectedBot &&
-        walletConfig.wallet_address !== selectedBot.wallet_address
-      ) {
-        updateData.wallet_address = walletConfig.wallet_address;
-      }
 
       // Sauvegarder la configuration principale
       await updateBotConfig(selectedBotId, updateData);
 
-      // Sauvegarder la configuration wallet séparément
-      if (walletConfig.wallet_private_key) {
-        await fetch(`http://mmk.knocoin.com/bots/${selectedBotId}/wallet`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(walletConfig),
-        });
+      // Sauvegarder la clé privée si fournie
+      if (config.wallet_private_key) {
+        await fetch(
+          `https://mmk.knocoin.com/api/bots/${selectedBotId}/wallet`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              wallet_private_key: config.wallet_private_key,
+            }),
+          },
+        );
       }
+
+      // 🔄 Rafraîchir le bot depuis l'API pour mettre à jour le contexte
+      // après updateBotConfig
+      const updatedBot = await fetch(
+        `https://mmk.knocoin.com/api/bots/${selectedBotId}`,
+      ).then((res) => res.json());
+
+      setConfig({
+        volatility_percent: updatedBot.volatility_percent,
+        buy_amount: updatedBot.buy_amount,
+        sell_amount: updatedBot.sell_amount,
+        min_swap_amount: updatedBot.min_swap_amount,
+        reference_price: updatedBot.reference_price,
+        slippage_tolerance: updatedBot.slippage_tolerance,
+        gas_limit: updatedBot.gas_limit,
+        gas_price: updatedBot.gas_price,
+        random_trades_count: updatedBot.random_trades_count,
+        trading_duration_hours: updatedBot.trading_duration_hours,
+        wallet_address: updatedBot.wallet_address,
+        wallet_private_key: "",
+      });
+
+      // OU tu peux utiliser cette syntaxe pour juste purger
+      setConfig((prev) => ({
+        ...prev,
+        wallet_private_key: "", // 🧹 purge mémoire front
+      }));
+      // setWalletConfig({
+      //   wallet_address: updatedBot.wallet_address,
+      //   wallet_private_key: "",
+      // });
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
 
       console.log("💾 Configuration du bot mise à jour avec succès");
     } catch (error) {
@@ -547,9 +568,9 @@ function BotConfig() {
               </label>
               <input
                 type="text"
-                value={walletConfig.wallet_address}
+                value={config.wallet_address}
                 onChange={(e) =>
-                  setWalletConfig((prev) => ({
+                  setConfig((prev) => ({
                     ...prev,
                     wallet_address: e.target.value,
                   }))
@@ -574,9 +595,9 @@ function BotConfig() {
               <div className="relative">
                 <input
                   type={showPrivateKey ? "text" : "password"}
-                  value={walletConfig.wallet_private_key}
+                  value={config.wallet_private_key}
                   onChange={(e) =>
-                    setWalletConfig((prev) => ({
+                    setConfig((prev) => ({
                       ...prev,
                       wallet_private_key: e.target.value,
                     }))

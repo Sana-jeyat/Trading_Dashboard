@@ -18,7 +18,7 @@ COPY . .
 RUN mkdir -p bot_configs trading_scripts
 
 # Exposer le port
-EXPOSE 8000
+EXPOSE 3000
 
 # Commande de démarrage
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "3000"]

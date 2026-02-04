@@ -434,6 +434,7 @@ async def start_bot(bot_id: int, current_user: User = Depends(get_current_user),
     
     bot.is_active = True
     bot.status = "active"
+    await bot_manager.start_bot(bot)
     bot.updated_at = datetime.utcnow()
     db.commit()
     
@@ -470,14 +471,15 @@ async def update_bot_status(
     if not bot:
         raise HTTPException(status_code=404, detail="Bot non trouvé")
     
-    bot.status = status_data.get("status", bot.status)
+    status = status_data.get("status", bot.status)
+    bot.status = status
     
     # Mettre à jour is_active en fonction du status
-    if status_data.get("status") == "active":
+    if status in ["active", "online"]:
         bot.is_active = True
-    elif status_data.get("status") in ["paused", "error", "offline"]:
+    elif status in ["paused", "error", "offline"]:
         bot.is_active = False
-    
+        # bot.last_error = status_data.get("error", None)
     bot.updated_at = datetime.utcnow()
     db.commit()
     
@@ -769,7 +771,7 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     
     logger.info("🚀 Démarrage de l'API KNO Trading Bot")
-    logger.info("📡 API accessible sur : http://0.0.0.0:8000")
+    logger.info("📡 API accessible sur : http://0.0.0.0:3000")
     logger.info("🤖 Configuration KNO prête pour le bot sur Polygon")
     
     uvicorn.run(app, host="0.0.0.0", port=3000, log_level="info")

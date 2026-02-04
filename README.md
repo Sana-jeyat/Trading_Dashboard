@@ -5,18 +5,23 @@ Dashboard web pour gérer et monitorer vos bots de trading automatique.
 ## 🚀 Démarrage Rapide
 
 ### Frontend (Dashboard)
+
 ```bash
 npm install
 npm run dev
 ```
+
 Le dashboard sera accessible sur http://localhost:5173
 
 ### Backend (API)
+
 ```bash
 cd backend
 pip install -r requirements.txt
 python main.py
+jkgkugk
 ```
+
 L'API sera accessible sur http://localhost:8000
 
 ## 🔗 Connecter votre Bot Distant
@@ -24,16 +29,19 @@ L'API sera accessible sur http://localhost:8000
 ### 🔄 Synchronisation Bidirectionnelle
 
 **Dashboard → Bot** :
+
 - Modifiez les paramètres dans l'interface
 - Le bot récupère automatiquement la nouvelle config
 - Application immédiate des changements
 
 **Bot → Dashboard** :
+
 - Transactions envoyées en temps réel
 - Métriques mises à jour automatiquement
 - Statut de connexion affiché
 
 ### 1. Configuration Réseau
+
 - **Dashboard PC** : Notez l'IP (ex: 192.168.1.100)
 - **Bot PC** : Doit pouvoir accéder à cette IP
 - **Port** : 8000 (API) et 5173 (Dashboard)
@@ -94,6 +102,7 @@ Bot PC (192.168.1.101)
 ## 🔧 Configuration Avancée
 
 ### Variables d'environnement (.env)
+
 ```
 DATABASE_URL=sqlite:///./trading_bots.db
 SECRET_KEY=your-secret-key
@@ -102,6 +111,7 @@ API_PORT=8000
 ```
 
 ### Sécurité
+
 - Tokens d'authentification uniques par bot
 - Connexions HTTPS en production
 - Heartbeat pour détecter les déconnexions
@@ -116,11 +126,13 @@ API_PORT=8000
 ## 🐛 Dépannage
 
 ### Bot ne se connecte pas
+
 1. Vérifiez l'IP et le port
 2. Testez avec `curl http://IP:8000/`
 3. Vérifiez le token d'authentification
 
 ### Transactions non affichées
+
 1. Vérifiez les logs du bot
 2. Testez la connexion API
 3. Vérifiez le format des données

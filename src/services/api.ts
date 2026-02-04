@@ -146,7 +146,7 @@
 // export const apiService = new ApiService();
 
 // api.tsx - Version corrigée
-const API_BASE_URL = 'http://mmk.knocoin.com/api';
+const API_BASE_URL = 'https://mmk.knocoin.com/api';
 
 // Types pour l'API - CORRIGÉS pour matcher le backend
 export interface BotConfig {

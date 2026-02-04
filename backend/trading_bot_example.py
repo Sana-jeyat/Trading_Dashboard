@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class TradingBotClient:
     def __init__(self, config_file: str):
         self.config = self._load_config(config_file)
-        self.api_base = self.config.get("api_endpoint", "http://mmk.knocoin.com/")
+        self.api_base = self.config.get("api_endpoint", "https://mmk.knocoin.com/api")
         self.bot_id = self.config["bot_id"]
         self.running = True
         

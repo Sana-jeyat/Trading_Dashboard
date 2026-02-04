@@ -441,7 +441,7 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
   // Fonction pour récupérer le prix KNO
   const getKnoPrice = async (): Promise<number | null> => {
     try {
-      const response = await fetch("/kno/price");
+      const response = await fetch("/api/kno/price");
       const data = await response.json();
       return data.price_eur || null;
     } catch (error) {
